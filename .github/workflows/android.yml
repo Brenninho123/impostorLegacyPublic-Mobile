@@ -53,11 +53,13 @@ jobs:
 
       - name: Patch Lime sources
         run: |
-          LIME_SRC=$(find .haxelib/lime/git/src -name "BMP.cpp" -path "*/graphics/format/*" | head -1 | xargs -I{} dirname {})
+          LIME_SRC=$(find .haxelib/lime/git -name "BMP.cpp" -path "*/graphics/format/*" 2>/dev/null | head -1 | xargs -I{} dirname {})
           if [ -z "$LIME_SRC" ]; then
-            echo "Lime src not found"
+            echo "BMP.cpp not found, listing lime structure:"
+            find .haxelib/lime/git -maxdepth 4 -type d | head -30
             exit 1
           fi
+          echo "Found: $LIME_SRC"
           for FILE in "$LIME_SRC"/*.cpp; do
             grep -q '#include <SDL3_image/SDL_image.h>' "$FILE" || continue
             grep -q '#include <climits>' "$FILE" && continue
@@ -69,8 +71,7 @@ jobs:
         id: cache_lime
         uses: actions/cache@v4
         with:
-          path: |
-            .haxelib/lime/git/ndll
+          path: .haxelib/lime/git/ndll
           key: lime-ndll-${{ hashFiles('.haxelib/lime/git/.git/HEAD') }}-v1
 
       - name: Rebuild Lime Linux
