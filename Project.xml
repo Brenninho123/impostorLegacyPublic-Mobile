@@ -1,50 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <project>
-	<!-- _________________________ Application Settings _________________________ -->
-
 	<app title="VS IMPOSTOR LEGACY" file="ImpostorLegacy" packageName="com.motorfrog.impostor" package="com.motorfrog.impostor" main="Main" version="0.2.7" company="MotorFrog" />
 
-	<!--Switch Export with Unique ApplicationID and Icon-->
 	<set name="APP_ID" value="0x0100f6c013bbc000" />
 
-	<!-- NOTE TO SELF: DISABLE THIS IF ISSUES ARE FOUND -->
 	<haxedef name="LINC_LUA_RELATIVE_DYNAMIC_LIB"/>
-	<!-- stable luas PUT AFTER FIRST LINE WITH APP NAME AND ETC -->
 
-	<!--The flixel preloader is not accurate in Chrome. You can use it regularly if you embed the swf into a html file
-		or you can set the actual size of your file manually at "FlxPreloaderBase-onUpdate-bytesTotal"-->
-	<!-- <app preloader="Preloader" resizable="true" /> -->
 	<app preloader="flixel.system.FlxPreloader" />
 
-	<!--Minimum without FLX_NO_GAMEPAD: 11.8, without FLX_NO_NATIVE_CURSOR: 11.2-->
 	<set name="SWF_VERSION" value="11.8" />
 
-	<!-- ____________________________ Window Settings ___________________________ -->
-
-	<!--These window settings apply to all targets-->
 	<window width="1280" height="720" fps="60" background="#000000" hardware="true" vsync="false" allow-high-dpi="true" />
 
-	<!--Desktop-specific-->
 	<window if="desktop" orientation="landscape" fullscreen="false" resizable="true" vsync="false"/>
-
-	<!--Mobile-specific-->
 	<window if="mobile" orientation="landscape" fullscreen="true" width="0" height="0" resizable="false"/>
-
-	<!--Switch-specific-->
 	<window if="switch" orientation="landscape" fullscreen="true" width="0" height="0" resizable="true" />
 
-	<!-- _____________________________ Engine Config Settings ____________________________ -->
-
-	<!--ENGINE CUSTOMIZATION-->
 	<define name="MODS_ALLOWED" if="desktop" />
-	<define name="VIDEOS_ALLOWED" if="cpp" />
-	<define name="DISCORD_ALLOWED" if="cpp"/>
-
-	<!-- _____________________________ Path Settings ____________________________ -->
+	<define name="VIDEOS_ALLOWED" if="desktop" />
+	<define name="DISCORD_ALLOWED" if="desktop" />
 
 	<classpath name="source" />
 
-	<!--Fixes hxvlc using global rather than local. you will need to use hmm/hxpkg to compile this project though-->
 	<setenv name="HAXEPATH" value="./"/>
 
 	<set name="BUILD_DIR" value="export/debug" if="debug" />
@@ -53,47 +30,44 @@
 	<set name="BUILD_DIR" value="${BUILD_DIR}-tracy" if="FEATURE_DEBUG_TRACY"/>
 
 	<assets path="LEGACY.md" rename="CHANGELOG.md"/>
-	
+
 	<section unless="ASSET_REDIRECT">
-		<log info="INCLUDING ASSETS!!" />
-		<log info="INCLUDING DLC!!" if="DLC" />
 		<assets path="content/securitydlc" embed="false" if="MODS_ALLOWED DLC"/>
 		<assets path="assets/embeds" rename="assets" embed="true"/>
 		<assets path="assets/legacy" rename="assets"/>
 	</section>
 
-	<!--OpenAL config-->	<!-- appreciate you cyn0x8 and smokey for finding this -->
 	<section if="desktop">
 		<assets path="projFiles/alsoft.ini" rename="alsoft.ini" type="text" if="windows"/>
 		<assets path="projFiles/alsoft.ini" rename="alsoft.conf" type="text" unless="windows"/>
 	</section>
 
-	<!-- _______________________________ Haxe libraries ______________________________ -->
+	<section if="android">
+		<permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+		<permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="29" />
+		<permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE" />
+		<permission android:name="android.permission.INTERNET" />
+		<permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+		<permission android:name="android.permission.VIBRATE" />
+		<permission android:name="android.permission.WAKE_LOCK" />
+		<activity android:exported="true" />
+	</section>
 
-	<!--Core engine libraries-->
 	<haxelib name="openfl"/>
-
 	<haxelib name="flixel"/>
 	<haxelib name="flixel-addons"/>
 	<haxelib name="flixel-ui" version="2.6.4"/>
-
 	<haxelib name="hscript-iris"/>
-
 	<haxelib name="flixel-animate"/>
 	<haxelib name="moonchart"/>
-
 	<haxelib name="haxeui-core" />
 	<haxelib name="haxeui-flixel" />
-
 	<haxelib name="funkin.vis"/>
 	<haxelib name="grig.audio"/>
 	<haxelib name="json2object"/>
 	<haxelib name="json5hx"/>
-
 	<haxelib name="hxdiscord_rpc" if="DISCORD_ALLOWED" version="1.2.4"/>
 	<haxelib name="hxvlc" if="VIDEOS_ALLOWED"/>
-
-	<!-- _______________ macros ... oh theres so many ... save me ... _______________ -->
 
 	<haxeflag name="--macro" value="addMetadata('@:build(funkin.backend.macro.FlxMacro.buildFlxSprite())', 'flixel.FlxSprite')" />
 	<haxeflag name="--macro" value="addMetadata('@:build(funkin.backend.macro.FlxMacro.buildFlxBasic())', 'flixel.FlxBasic')" />
@@ -109,57 +83,34 @@
 
 	<haxeflag name="-dce no" />
 
-	<!-- ______________________________ Haxedefines _____________________________ -->
-
 	<haxedef name="analyzer-optimize" unless='debug'/>
 
-	<!--Needed for haxeui-->
 	<haxedef name="haxeui_dont_impose_base_class"/>
 	<haxedef name="haxeui_focus_out_on_click"/>
 
-	<!--Needed for better error reporting with hscript-->
 	<define name="hscriptPos"/>
 
-	<!--Tracy profiler stuff-->
 	<section if="FEATURE_DEBUG_TRACY">
 		<haxedef name="HXCPP_TELEMETRY"/>
 		<haxedef name="HXCPP_TRACY"/>
 		<haxedef name="HXCPP_TRACY_MEMORY"/>
 		<haxedef name="HXCPP_TRACY_ON_DEMAND"/>
 		<haxedef name="absolute-paths"/>
-		<!-- <haxedef name="HXCPP_TRACY_INCLUDE_CALLSTACKS"/> -->
 	</section>
 
-	<!--Enable for better crash handling/reporting-->
 	<haxedef name="CRASH_HANDLER"/>
-
 	<haxedef name="HXCPP_CHECK_POINTER" if="CRASH_HANDLER"/>
 	<haxedef name="HXCPP_STACK_LINE" if="CRASH_HANDLER"/>
 	<haxedef name="HXCPP_STACK_TRACE" if="CRASH_HANDLER"/>
 	<haxedef name="openfl-enable-handle-error" if="CRASH_HANDLER"/>
 
-	<!--Disables all tracing abilities. Enable this for a small performance improvement-->
-	<!-- <define name="DISABLE_TRACES" if="desktop release"/> -->
-
-	<!--Remove the legacy health system-->
 	<haxedef name="FLX_NO_HEALTH" />
-
-	<!--Disable the Flixel core focus lost screen-->
 	<haxedef name="FLX_NO_FOCUS_LOST_SCREEN" />
-
-	<!--Disable the Flixel core debugger. Automatically gets set whenever you compile in release mode!-->
 	<haxedef name="FLX_NO_DEBUG" unless="debug" />
-
-	<!--Enable this for Nape release builds for a serious peformance improvement-->
 	<haxedef name="NAPE_RELEASE_BUILD" unless="debug" />
 
-	<!--For haxe 4.3.0 and newer cleaner error reporting-->
 	<haxedef name="message.reporting" value="pretty" />
-
-	<!--For haxe 4.3.0 and newer disables warnings-->
 	<haxedef name="no-deprecation-warnings"/>
-
-	<!-- _________________________________ Custom _______________________________ -->
 
 	<icon path="projFiles/icon/icon16.png" size='16'/>
 	<icon path="projFiles/icon/icon32.png" size='32'/>
