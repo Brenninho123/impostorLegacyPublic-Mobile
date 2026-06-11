@@ -16,132 +16,130 @@ class TitleState extends MusicBeatState
 {
 	public static var initialized:Bool = false;
 	public static var closedState:Bool = false;
-	
-	// For a potential loading screen but i dont think its necessary
+
 	public static var funFacts:Array<String> = [
-		'You need at least 4,870 beans to unlock every song.', // its true
-		'Despite its\' name, Double Kill only features one kill.', // double kill
-		'I\'m the black impostor! I am gonna kill you!', // defeat
-		'The Airship contains many wacky trinkets in i! Try the teleporter today!', // henry
-		'"Why don\'t we begin?"', // torture
-		'The shapeshifter\'s name is Monotone.', // doc
-		'"Impostor Trouble? Now it is double."', // double trouble
+		'You need at least 4,870 beans to unlock every song.',
+		'Despite its\' name, Double Kill only features one kill.',
+		'I\'m the black impostor! I am gonna kill you!',
+		'The Airship contains many wacky trinkets in i! Try the teleporter today!',
+		'"Why don\'t we begin?"',
+		'The shapeshifter\'s name is Monotone.',
+		'"Impostor Trouble? Now it is double."',
 		'Beat the Tomongus week to unlock a new song!',
 		'I don\'t want to get rid of this'
 	];
-	
+
 	var skippedIntro:Bool = false;
 	var transitioning:Bool = false;
-	
+
 	var introEndingText:Array<String> = ['VS', 'IMPOSTOR', 'LEGACY'];
 	var randomIntroText:Array<String> = [];
-	
-	// objects
+
 	var starFG:Null<FlxSprite> = null;
 	var starBG:Null<FlxSprite> = null;
 	var textGroup:Null<FlxGroup> = null;
 	var ngSpr:Null<FlxSprite> = null;
 	var logo:Null<FlxSprite> = null;
 	var titleText:Null<FlxSprite> = null;
-	
+
 	public static function init():Void
 	{
 		FunkinAssets.cache.clearStoredMemory();
 		FunkinAssets.cache.clearUnusedMemory();
-		
-		// for some reason the plugin scripts dont run sometimes when first loaded. oh well
+
 		funkin.scripting.PluginsManager.prepareSignals();
 		funkin.scripting.PluginsManager.populate();
 	}
-	
+
 	override public function create():Void
 	{
 		if (FlxG.save.data.photosensitive == null && !FlashingState.leftState)
 		{
 			CoolUtil.setTransSkip();
 			FlxG.switchState(FlashingState.new);
-			
+
 			return super.create();
 		}
-		
+
 		if (ClientPrefs.finaleState == COMPLETE && !ProgressionUtil.songIsClear('finale'))
 		{
-			// failsafe for a realy specific case
 			ClientPrefs.finaleState = ACTIVE;
 		}
-		
+
 		init();
-		
+
 		randomIntroText = FlxG.random.getObject(getIntroText());
-		
+
 		initStateScript();
-		
+
 		startIntro();
-		
+
 		super.create();
-		
+
 		#if ASSET_REDIRECT
 		if (Paths.fileExists('images/cursor.png'))
 			FlxG.mouse.load(openfl.display.BitmapData.fromFile(Paths.getPath('images/cursor.png')));
 		#else
 		FlxG.mouse.load('assets/images/cursor.png');
 		#end
-		
+
 		persistentUpdate = true;
-		
+
+		#if !mobile
 		FlxG.mouse.visible = true;
+		#end
 	}
-	
+
 	function startIntro()
 	{
 		if (!initialized)
 		{
 			FunkinSound.playMusic(Paths.music('freakyMenu'), 0);
 		}
-		
+
 		Conductor.bpm = 102;
-		
+
 		if (isHardcodedState() && scriptGroup.call('onStartIntro') != ScriptConstants.STOP_FUNC)
 		{
 			starBG = new FlxBackdrop(Paths.image('menu/common/starBG'));
 			starBG.alpha = 0.001;
 			add(starBG);
-			
+
 			starFG = new FlxBackdrop(Paths.image('menu/common/starFG'));
 			starFG.alpha = 0.001;
 			add(starFG);
-			
+
 			logo = new FlxSprite(-150, -10).loadAtlasFrames(Paths.getAtlasFrames('logoBumpin'));
 			logo.animation.addByPrefix('bump', 'logo bumpin', 24, false);
 			logo.animation.play('bump');
 			logo.screenCenter(X);
 			add(logo);
-			
+
 			titleText = new FlxSprite(300, FlxG.height * 0.855).loadAtlasFrames(Paths.getAtlasFrames('menu/title/startText'));
 			titleText.animation.addByPrefix('idle', "EnterIdle", 24, false);
 			titleText.animation.addByPrefix('press', "EnterStart", 24, false);
 			titleText.animation.play('idle');
 			titleText.y -= 55;
-			
+
 			logo.scale.set(0.84, 0.84);
 			logo.updateHitbox();
 			logo.screenCenter(X);
 			logo.x += 20;
-			
+
 			add(titleText);
-			
+
 			textGroup = new FlxGroup();
 			add(textGroup);
-			
+
 			ngSpr = new FlxSprite(0, FlxG.height * 0.52, Paths.image('menu/title/funkin'));
 			add(ngSpr);
 			ngSpr.visible = false;
 			ngSpr.screenCenter(X);
-			
+
 			logo.alpha = 0.001;
 			titleText.alpha = 0.001;
 		}
-		
+
 		if (initialized)
 		{
 			skipIntro();
@@ -151,10 +149,10 @@ class TitleState extends MusicBeatState
 			initialized = true;
 			closedState = false;
 		}
-		
+
 		scriptGroup.call('onCreatePost', []);
 	}
-	
+
 	override function update(elapsed:Float)
 	{
 		if (FlxG.sound.music != null) Conductor.songPosition = FlxG.sound.music.time;
@@ -163,30 +161,43 @@ class TitleState extends MusicBeatState
 			starBG.x = FlxMath.lerp(starBG.x, starBG.x - 0.5, elapsed * 9);
 			starFG.x = FlxMath.lerp(starFG.x, starFG.x - 1, elapsed * 9);
 		}
-		
+
 		if (!isHardcodedState())
 		{
 			super.update(elapsed);
 			return;
 		}
-		
-		final pressedEnter:Bool = FlxG.gamepads.lastActive?.justPressed.START || FlxG.keys.justPressed.ENTER || controls.ACCEPT || FlxG.mouse.justPressed;
-		
+
+		var touchPressed:Bool = false;
+		#if mobile
+		for (touch in FlxG.touches.justStarted())
+		{
+			touchPressed = true;
+			break;
+		}
+		#end
+
+		final pressedEnter:Bool = FlxG.gamepads.lastActive?.justPressed.START
+			|| FlxG.keys.justPressed.ENTER
+			|| controls.ACCEPT
+			|| FlxG.mouse.justPressed
+			|| touchPressed;
+
 		if (!transitioning && skippedIntro)
 		{
 			if (pressedEnter && scriptGroup.call('onEnter', []) != ScriptConstants.STOP_FUNC)
 			{
 				FlxG.camera.flash(ClientPrefs.flashing ? FlxColor.WHITE : 0x4CFFFFFF, 1);
 				transitioning = true;
-				
+
 				if (titleText != null)
 				{
 					titleText.animation.play('press');
 					titleText.offset.set(278, 2);
 				}
-				
+
 				FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
-				
+
 				FlxTimer.wait(1, () -> {
 					MainMenuState.fromTitle = true;
 					FlxG.switchState(MainMenuState.new);
@@ -194,39 +205,39 @@ class TitleState extends MusicBeatState
 				});
 			}
 		}
-		
+
 		if (pressedEnter && !skippedIntro)
 		{
 			skipIntro();
 		}
-		
+
 		super.update(elapsed);
 	}
-	
+
 	function createCoolText(textArray:Array<String>, offset:Float = 0)
 	{
 		if (textGroup == null) return;
-		
+
 		for (i in 0...textArray.length)
 		{
 			final text:Alphabet = new Alphabet(0, 0, textArray[i], true);
 			text.screenCenter(X);
 			text.y += (i * 60) + 200 + offset;
-			
+
 			textGroup.add(text);
 		}
 	}
-	
+
 	function addMoreText(text:String, offset:Float = 0)
 	{
 		if (textGroup == null) return;
-		
+
 		final coolText:Alphabet = new Alphabet(0, 0, text, true);
 		coolText.screenCenter(X);
 		coolText.y += (textGroup.length * 60) + 200 + offset;
 		textGroup.add(coolText);
 	}
-	
+
 	function deleteCoolText()
 	{
 		if (textGroup != null && textGroup.members[0] != null)
@@ -235,50 +246,49 @@ class TitleState extends MusicBeatState
 			{
 				var txt = textGroup.members[0];
 				textGroup.remove(txt, true);
-				
+
 				txt = FlxDestroyUtil.destroy(txt);
 			}
 		}
 	}
-	
+
 	function getIntroText():Array<Array<String>>
 	{
 		if (!FunkinAssets.exists(Paths.txt('introText'))) return [];
-		
+
 		final fullText:String = FunkinAssets.getContent(Paths.txt('introText'));
-		
+
 		return [for (i in fullText.split('\n')) i.split('--')];
 	}
-	
-	var sickBeats:Int = 0; // Basically curBeat but won't be skipped if you hold the tab or resize the screen
-	
+
+	var sickBeats:Int = 0;
+
 	override function beatHit()
 	{
 		super.beatHit();
-		
+
 		if (!closedState)
 		{
 			sickBeats++;
 			scriptGroup.set('curBeat', sickBeats);
 		}
-		
+
 		if (!isHardcodedState() || scriptGroup.call('onBeatHit', []) == ScriptConstants.STOP_FUNC) return;
-		
-		// just in case
+
 		if (isHardcodedState())
 		{
 			if (logo != null)
 			{
 				logo.animation.play('bump', true);
 			}
-			
+
 			if (!closedState)
 			{
 				switch (sickBeats)
 				{
 					case 1:
 						FunkinSound.playMusic(Paths.music('freakyMenu'), 0);
-						
+
 						if (ClientPrefs.finaleState != ACTIVE) FlxG.sound.music.fadeIn(4, 0, 0.7);
 					case 2:
 						createCoolText(['MOTORFROG']);
@@ -312,14 +322,14 @@ class TitleState extends MusicBeatState
 			}
 		}
 	}
-	
+
 	public function skipIntro():Void
 	{
 		if (scriptGroup.call('onSkipIntro', []) != ScriptConstants.STOP_FUNC && !skippedIntro)
 		{
 			ngSpr?.kill();
 			textGroup?.kill();
-			
+
 			if (starFG != null && starBG != null)
 			{
 				starBG.alpha = 1;
@@ -327,9 +337,9 @@ class TitleState extends MusicBeatState
 			}
 			if (logo != null) logo.alpha = 1;
 			if (titleText != null) titleText.alpha = 1;
-			
+
 			FlxG.camera.flash(FlxColor.WHITE, 4);
-			
+
 			skippedIntro = true;
 		}
 	}
