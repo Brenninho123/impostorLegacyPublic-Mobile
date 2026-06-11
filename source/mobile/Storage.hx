@@ -27,7 +27,7 @@ class Storage
 	{
 		ensureDirectory(externalStorage);
 		ensureDirectory(externalStorage + "/assets");
-		ensureDirectory(externalStorage + "/mods");
+		ensureDirectory(externalStorage + "/content");
 		copyAssetsIfNeeded();
 	}
 
@@ -91,7 +91,7 @@ class Storage
 
 	public static function resolveModsPath():String
 	{
-		return Path.join([externalStorage, "mods"]);
+		return Path.join([externalStorage, "content"]);
 	}
 
 	public static function getExternalFilePath(relative:String):String
