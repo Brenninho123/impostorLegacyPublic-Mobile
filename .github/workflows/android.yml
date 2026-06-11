@@ -42,28 +42,16 @@ jobs:
           haxelib install hxpkg
           haxelib run hxpkg install
 
-      - name: Debug lime paths
-        run: |
-          echo "=== haxelib path lime ==="
-          haxelib path lime || true
-          echo "=== haxelib libpath lime ==="
-          haxelib libpath lime || true
-          echo "=== haxelib list ==="
-          haxelib list | grep lime || true
-          echo "=== find ndll ==="
-          find ~/haxelib -name "lime.ndll" 2>/dev/null || true
-          find .haxelib -name "lime.ndll" 2>/dev/null || true
-          echo "=== lime git ndll dir ==="
-          LIME_GIT=$(haxelib path lime | head -1 | tr -d '[:space:]')
-          echo "LIME_GIT=$LIME_GIT"
-          ls "$LIME_GIT/ndll/" 2>/dev/null || echo "ndll dir missing or empty"
-
       - name: Copy lime ndll to git fork
         run: |
-          LIME_RELEASE=$(haxelib libpath lime 2>/dev/null | grep -v git | head -1 | tr -d '[:space:]')
-          LIME_GIT=$(haxelib path lime | head -1 | tr -d '[:space:]')
-          if [ -d "$LIME_RELEASE/ndll" ] && [ "$LIME_RELEASE" != "$LIME_GIT" ]; then
-            cp -r "$LIME_RELEASE/ndll/." "$LIME_GIT/ndll/"
+          LIME_RELEASE=$(find ~/haxelib/lime -maxdepth 2 -name "lime.ndll" | head -1)
+          LIME_GIT_NDLL=".haxelib/lime/git/ndll/Linux64"
+          mkdir -p "$LIME_GIT_NDLL"
+          if [ -n "$LIME_RELEASE" ]; then
+            cp "$(dirname $LIME_RELEASE)/." "$LIME_GIT_NDLL/" -r
+          else
+            LIME_RELEASE_DIR=$(find ~/haxelib/lime -maxdepth 1 -type d | sort -V | tail -1)
+            cp -r "$LIME_RELEASE_DIR/ndll/." ".haxelib/lime/git/ndll/"
           fi
 
       - name: Setup Lime Android config
