@@ -42,6 +42,22 @@ jobs:
           haxelib install hxpkg
           haxelib run hxpkg install
 
+     - name: Debug lime paths
+        run: |
+          echo "=== haxelib path lime ==="
+          haxelib path lime || true
+          echo "=== haxelib libpath lime ==="
+          haxelib libpath lime || true
+          echo "=== haxelib list ==="
+          haxelib list | grep lime || true
+          echo "=== find ndll ==="
+          find ~/haxelib -name "lime.ndll" 2>/dev/null || true
+          find .haxelib -name "lime.ndll" 2>/dev/null || true
+          echo "=== lime git ndll dir ==="
+          LIME_GIT=$(haxelib path lime | head -1 | tr -d '[:space:]')
+          echo "LIME_GIT=$LIME_GIT"
+          ls "$LIME_GIT/ndll/" 2>/dev/null || echo "ndll dir missing or empty"
+
       - name: Copy lime ndll to git fork
         run: |
           LIME_RELEASE=$(haxelib libpath lime 2>/dev/null | grep -v git | head -1 | tr -d '[:space:]')
