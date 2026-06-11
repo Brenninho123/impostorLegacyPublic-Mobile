@@ -34,71 +34,24 @@ jobs:
           echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/21.4.7075529" >> $GITHUB_ENV
           echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/21.4.7075529" >> $GITHUB_ENV
 
-      - name: Install system dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libwayland-dev \
-            wayland-protocols \
-            wayland-scanner++ \
-            libxrandr-dev \
-            libx11-dev \
-            libxi-dev \
-            libxext-dev \
-            libudev-dev \
-            libgl1-mesa-dev \
-            libgles2-mesa-dev \
-            libegl1-mesa-dev \
-            libvlc-dev \
-            libvlccore-dev
-
       - name: Install Haxe libraries
         run: |
           haxelib setup ~/haxelib
           haxelib install hxcpp > /dev/null
+          haxelib install lime > /dev/null
           haxelib install hxpkg
           haxelib run hxpkg install
 
-      - name: Get Lime commit hash
-        id: lime_hash
-        run: |
-          LIME_PATH=$(haxelib path lime | head -1 | tr -d '[:space:]')
-          echo "hash=$(cat $LIME_PATH/.git/HEAD | tr -d '[:space:]')" >> $GITHUB_OUTPUT
-          echo "path=$LIME_PATH" >> $GITHUB_OUTPUT
-
-      - name: Cache Lime ndll
-        id: cache_lime
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ steps.lime_hash.outputs.path }}/ndll
-            ${{ steps.lime_hash.outputs.path }}/lib
-          key: lime-android-${{ steps.lime_hash.outputs.hash }}
-
-      - name: Patch Lime BMP.cpp
-        if: steps.cache_lime.outputs.cache-hit != 'true'
-        run: |
-          LIME_PATH=$(haxelib path lime | head -1 | tr -d '[:space:]')
-          BMP_FILE="$LIME_PATH/src/graphics/format/BMP.cpp"
-          if [ -f "$BMP_FILE" ]; then
-            grep -q '#include <climits>' "$BMP_FILE" || \
-              sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$BMP_FILE"
-          fi
-
-      - name: Rebuild Lime
-        if: steps.cache_lime.outputs.cache-hit != 'true'
-        run: |
-          haxelib run lime rebuild linux -DHXCPP_COMPILE_THREADS=4
-          haxelib run lime rebuild android -DHXCPP_COMPILE_THREADS=4
-
       - name: Setup Lime Android config
         run: |
-          printf '\n' | haxelib run lime setup android \
-            ANDROID_SDK "$ANDROID_SDK_ROOT" \
-            ANDROID_NDK_ROOT "$ANDROID_NDK_HOME" \
-            JAVA_HOME "$JAVA_HOME" \
-            ANDROID_BUILD_TOOLS "34.0.0" \
-            ANDROID_PLATFORM "android-34"
+          LIME_PATH=$(haxelib path lime | head -1 | tr -d '[:space:]')
+          printf '%s\n' \
+            "$ANDROID_SDK_ROOT" \
+            "$ANDROID_NDK_HOME" \
+            "$JAVA_HOME" \
+            "34.0.0" \
+            "android-34" \
+            "" | haxelib run lime setup android
 
       - name: Compile
         run: haxelib run lime build android -release ${{ inputs.buildFlags != '' && format('-D {0}', inputs.buildFlags) || '' }}
