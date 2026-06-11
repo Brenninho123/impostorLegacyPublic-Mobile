@@ -71,7 +71,8 @@ jobs:
             libudev-dev \
             libgl1-mesa-dev \
             libgles2-mesa-dev \
-            libegl1-mesa-dev
+            libegl1-mesa-dev \
+            libdbus-1-dev
 
       - name: Find and Patch Lime sources
         run: |
