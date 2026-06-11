@@ -83,10 +83,9 @@ jobs:
       - name: Patch and Rebuild Lime
         if: steps.cache_lime.outputs.cache-hit != 'true'
         run: |
-          BMP=".haxelib/lime/git/src/graphics/format/BMP.cpp"
-          grep -q '#include <climits>' "$BMP" || sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$BMP"
-          haxelib run lime rebuild linux -DHXCPP_COMPILE_THREADS=4
-          haxelib run lime rebuild android -DHXCPP_COMPILE_THREADS=4
+          find .haxelib/lime -name "BMP.cpp" 2>/dev/null || echo "not found in .haxelib"
+          find ~/haxelib/lime -name "BMP.cpp" 2>/dev/null || echo "not found in ~/haxelib"
+          find ~ -name "BMP.cpp" 2>/dev/null | head -5 || echo "not found anywhere"
 
       - name: Compile
         run: haxelib run lime build android -release ${{ inputs.buildFlags != '' && format('-D {0}', inputs.buildFlags) || '' }}
