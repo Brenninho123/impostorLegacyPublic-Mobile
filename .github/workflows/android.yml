@@ -73,11 +73,16 @@ jobs:
             .haxelib/lime/git/lib
           key: lime-android-${{ steps.lime_hash.outputs.hash }}
 
+      - name: Patch Lime BMP.cpp
+        if: steps.cache_lime.outputs.cache-hit != 'true'
+        run: |
+          sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' .haxelib/lime/git/src/graphics/format/BMP.cpp
+
       - name: Rebuild Lime
         if: steps.cache_lime.outputs.cache-hit != 'true'
         run: |
-          haxelib run lime rebuild linux
-          haxelib run lime rebuild android
+          haxelib run lime rebuild linux -DHXCPP_COMPILE_THREADS=4
+          haxelib run lime rebuild android -DHXCPP_COMPILE_THREADS=4
 
       - name: Setup Lime Android config
         run: |
