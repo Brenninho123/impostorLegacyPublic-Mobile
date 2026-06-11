@@ -83,8 +83,7 @@ jobs:
       - name: Patch and Rebuild Lime
         if: steps.cache_lime.outputs.cache-hit != 'true'
         run: |
-          LIME_PATH=$(haxelib libpath lime | tr -d '[:space:]')
-          BMP="$LIME_PATH/src/graphics/format/BMP.cpp"
+          BMP=".haxelib/lime/git/src/graphics/format/BMP.cpp"
           grep -q '#include <climits>' "$BMP" || sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$BMP"
           haxelib run lime rebuild linux -DHXCPP_COMPILE_THREADS=4
           haxelib run lime rebuild android -DHXCPP_COMPILE_THREADS=4
