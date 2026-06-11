@@ -68,6 +68,7 @@ jobs:
             libx11-dev \
             libxi-dev \
             libxext-dev \
+            libxcursor-dev \
             libudev-dev \
             libgl1-mesa-dev \
             libgles2-mesa-dev \
