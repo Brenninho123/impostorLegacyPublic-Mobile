@@ -15,7 +15,7 @@ jobs:
   Android:
     name: Build Android
     runs-on: ubuntu-22.04
-    timeout-minutes: 60
+    timeout-minutes: 90
 
     steps:
       - name: Checkout
@@ -47,6 +47,26 @@ jobs:
           haxelib install hxpkg --quiet
           haxelib run hxpkg install
 
+      - name: Cache Lime ndll
+        id: cache_lime_ndll
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/haxelib/lime/git/ndll/Linux64
+            ~/haxelib/lime/git/ndll/Android
+          key: lime-ndll-${{ hashFiles('.hxpkg') }}-v1
+
+      - name: Rebuild Lime Linux
+        if: steps.cache_lime_ndll.outputs.cache-hit != 'true'
+        run: |
+          haxelib run lime rebuild cpp -release -DHXCPP_COMPILE_THREADS=$(nproc)
+          if [ ! -f ~/haxelib/lime/git/ndll/Linux64/lime.ndll ]; then
+            find ~/haxelib/lime -name "lime.ndll" 2>/dev/null || true
+            echo "ERROR: lime.ndll not found after rebuild"
+            exit 1
+          fi
+          echo "lime.ndll OK"
+
       - name: Accept Android Licenses
         run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
 
@@ -56,6 +76,17 @@ jobs:
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_LATEST_HOME
           haxelib run lime config JAVA_HOME        $JAVA_HOME_17_X64
           haxelib run lime config ANDROID_SETUP    true
+
+      - name: Rebuild Lime Android
+        if: steps.cache_lime_ndll.outputs.cache-hit != 'true'
+        run: |
+          haxelib run lime rebuild android -release -DHXCPP_COMPILE_THREADS=$(nproc)
+          if [ ! -f ~/haxelib/lime/git/ndll/Android/liblime-64.so ]; then
+            find ~/haxelib/lime -name "liblime*.so" 2>/dev/null || true
+            echo "ERROR: liblime-64.so not found after rebuild"
+            exit 1
+          fi
+          echo "liblime-64.so OK"
 
       - name: Set Compiler Threads
         run: echo "CPUS=$(nproc)" >> $GITHUB_ENV
