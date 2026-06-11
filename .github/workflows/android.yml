@@ -62,21 +62,28 @@ jobs:
       - name: Get Lime commit hash
         id: lime_hash
         run: |
-          echo "hash=$(cat .haxelib/lime/git/.git/HEAD | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+          LIME_PATH=$(haxelib path lime | head -1 | tr -d '[:space:]')
+          echo "hash=$(cat $LIME_PATH/.git/HEAD | tr -d '[:space:]')" >> $GITHUB_OUTPUT
+          echo "path=$LIME_PATH" >> $GITHUB_OUTPUT
 
       - name: Cache Lime ndll
         id: cache_lime
         uses: actions/cache@v4
         with:
           path: |
-            .haxelib/lime/git/ndll
-            .haxelib/lime/git/lib
+            ${{ steps.lime_hash.outputs.path }}/ndll
+            ${{ steps.lime_hash.outputs.path }}/lib
           key: lime-android-${{ steps.lime_hash.outputs.hash }}
 
       - name: Patch Lime BMP.cpp
         if: steps.cache_lime.outputs.cache-hit != 'true'
         run: |
-          sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' .haxelib/lime/git/src/graphics/format/BMP.cpp
+          LIME_PATH=$(haxelib path lime | head -1 | tr -d '[:space:]')
+          BMP_FILE="$LIME_PATH/src/graphics/format/BMP.cpp"
+          if [ -f "$BMP_FILE" ]; then
+            grep -q '#include <climits>' "$BMP_FILE" || \
+              sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$BMP_FILE"
+          fi
 
       - name: Rebuild Lime
         if: steps.cache_lime.outputs.cache-hit != 'true'
