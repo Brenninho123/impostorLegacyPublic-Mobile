@@ -42,7 +42,7 @@ jobs:
           haxelib install hxpkg
           haxelib run hxpkg install
 
-     - name: Debug lime paths
+      - name: Debug lime paths
         run: |
           echo "=== haxelib path lime ==="
           haxelib path lime || true
