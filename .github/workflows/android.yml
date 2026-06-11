@@ -38,31 +38,56 @@ jobs:
         run: |
           haxelib setup ~/haxelib
           haxelib install hxcpp > /dev/null
-          haxelib install lime > /dev/null
           haxelib install hxpkg
           haxelib run hxpkg install
 
-      - name: Copy lime ndll to git fork
-        run: |
-          LIME_RELEASE=$(find ~/haxelib/lime -maxdepth 2 -name "lime.ndll" | head -1)
-          LIME_GIT_NDLL=".haxelib/lime/git/ndll/Linux64"
-          mkdir -p "$LIME_GIT_NDLL"
-          if [ -n "$LIME_RELEASE" ]; then
-            cp "$(dirname $LIME_RELEASE)/." "$LIME_GIT_NDLL/" -r
-          else
-            LIME_RELEASE_DIR=$(find ~/haxelib/lime -maxdepth 1 -type d | sort -V | tail -1)
-            cp -r "$LIME_RELEASE_DIR/ndll/." ".haxelib/lime/git/ndll/"
-          fi
-
       - name: Setup Lime Android config
         run: |
-          printf '%s\n' \
-            "$ANDROID_SDK_ROOT" \
-            "$ANDROID_NDK_HOME" \
-            "$JAVA_HOME" \
-            "34.0.0" \
-            "android-34" \
-            "" | haxelib run lime setup android
+          mkdir -p ~/.lime
+          cat > ~/.lime/config.xml << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <config>
+            <section id="android">
+              <set name="ANDROID_SDK" value="$ANDROID_SDK_ROOT" />
+              <set name="ANDROID_NDK_ROOT" value="$ANDROID_NDK_HOME" />
+              <set name="JAVA_HOME" value="$JAVA_HOME" />
+              <set name="ANDROID_BUILD_TOOLS" value="34.0.0" />
+              <set name="ANDROID_PLATFORM" value="android-34" />
+            </section>
+          </config>
+          EOF
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwayland-dev \
+            wayland-protocols \
+            wayland-scanner++ \
+            libxrandr-dev \
+            libx11-dev \
+            libxi-dev \
+            libxext-dev \
+            libudev-dev \
+            libgl1-mesa-dev \
+            libgles2-mesa-dev \
+            libegl1-mesa-dev
+
+      - name: Cache Lime ndll
+        id: cache_lime
+        uses: actions/cache@v4
+        with:
+          path: .haxelib/lime/git/ndll
+          key: lime-ndll-${{ hashFiles('.hxpkg') }}
+
+      - name: Patch and Rebuild Lime
+        if: steps.cache_lime.outputs.cache-hit != 'true'
+        run: |
+          LIME_PATH=$(haxelib libpath lime | tr -d '[:space:]')
+          BMP="$LIME_PATH/src/graphics/format/BMP.cpp"
+          grep -q '#include <climits>' "$BMP" || sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$BMP"
+          haxelib run lime rebuild linux -DHXCPP_COMPILE_THREADS=4
+          haxelib run lime rebuild android -DHXCPP_COMPILE_THREADS=4
 
       - name: Compile
         run: haxelib run lime build android -release ${{ inputs.buildFlags != '' && format('-D {0}', inputs.buildFlags) || '' }}
