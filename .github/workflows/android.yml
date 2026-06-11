@@ -41,6 +41,11 @@ jobs:
           haxelib install hxpkg
           haxelib run hxpkg install
 
+      - name: Rebuild Lime
+        run: |
+          haxelib run lime rebuild linux
+          haxelib run lime rebuild android
+
       - name: Setup Lime Android config
         run: |
           printf '\n' | haxelib run lime setup android \
