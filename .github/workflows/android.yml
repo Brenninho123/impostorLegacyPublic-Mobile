@@ -73,19 +73,29 @@ jobs:
             libgles2-mesa-dev \
             libegl1-mesa-dev
 
+      - name: Find and Patch BMP.cpp
+        run: |
+          BMP=$(find ~ -name "BMP.cpp" -path "*/graphics/format/*" 2>/dev/null | head -1)
+          echo "BMP found at: $BMP"
+          if [ -n "$BMP" ]; then
+            grep -q '#include <climits>' "$BMP" || sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$BMP"
+            echo "patched"
+          else
+            echo "BMP.cpp not found, skipping patch"
+          fi
+
       - name: Cache Lime ndll
         id: cache_lime
         uses: actions/cache@v4
         with:
           path: .haxelib/lime/git/ndll
-          key: lime-ndll-${{ hashFiles('.hxpkg') }}
+          key: lime-ndll-${{ hashFiles('.hxpkg') }}-v2
 
-      - name: Patch and Rebuild Lime
+      - name: Rebuild Lime
         if: steps.cache_lime.outputs.cache-hit != 'true'
         run: |
-          find .haxelib/lime -name "BMP.cpp" 2>/dev/null || echo "not found in .haxelib"
-          find ~/haxelib/lime -name "BMP.cpp" 2>/dev/null || echo "not found in ~/haxelib"
-          find ~ -name "BMP.cpp" 2>/dev/null | head -5 || echo "not found anywhere"
+          haxelib run lime rebuild linux -DHXCPP_COMPILE_THREADS=4
+          haxelib run lime rebuild android -DHXCPP_COMPILE_THREADS=4
 
       - name: Compile
         run: haxelib run lime build android -release ${{ inputs.buildFlags != '' && format('-D {0}', inputs.buildFlags) || '' }}
