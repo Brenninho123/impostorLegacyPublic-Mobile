@@ -1,0 +1,60 @@
+name: Android
+
+on:
+  workflow_dispatch:
+  workflow_call:
+    inputs:
+      buildFlags:
+        required: false
+        type: string
+
+jobs:
+  buildAndroid:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: krdlab/setup-haxe@master
+        with:
+          haxe-version: 4.3.7
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android NDK r21e
+        run: |
+          echo "y" | sdkmanager "ndk;21.4.7075529"
+          echo "ANDROID_NDK_HOME=$ANDROID_SDK_ROOT/ndk/21.4.7075529" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_SDK_ROOT/ndk/21.4.7075529" >> $GITHUB_ENV
+
+      - name: Install Haxe libraries
+        run: |
+          haxelib setup ~/haxelib
+          haxelib install hxcpp > /dev/null
+          haxelib install hxpkg
+          haxelib run hxpkg install
+
+      - name: Setup Lime Android config
+        run: |
+          printf '\n' | haxelib run lime setup android \
+            ANDROID_SDK "$ANDROID_SDK_ROOT" \
+            ANDROID_NDK_ROOT "$ANDROID_NDK_HOME" \
+            JAVA_HOME "$JAVA_HOME" \
+            ANDROID_BUILD_TOOLS "34.0.0" \
+            ANDROID_PLATFORM "android-34"
+
+      - name: Compile
+        run: haxelib run lime build android -release ${{ inputs.buildFlags != '' && format('-D {0}', inputs.buildFlags) || '' }}
+
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ImpostorLegacy-android
+          path: export/release/android/bin/app/build/outputs/apk/release/app-release-unsigned.apk
