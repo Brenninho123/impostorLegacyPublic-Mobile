@@ -73,16 +73,16 @@ jobs:
             libgles2-mesa-dev \
             libegl1-mesa-dev
 
-      - name: Find and Patch BMP.cpp
+      - name: Find and Patch Lime sources
         run: |
-          BMP=$(find ~ -name "BMP.cpp" -path "*/graphics/format/*" 2>/dev/null | head -1)
-          echo "BMP found at: $BMP"
-          if [ -n "$BMP" ]; then
-            grep -q '#include <climits>' "$BMP" || sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$BMP"
-            echo "patched"
-          else
-            echo "BMP.cpp not found, skipping patch"
-          fi
+          LIME_SRC=$(find ~ -name "BMP.cpp" -path "*/graphics/format/*" 2>/dev/null | head -1 | xargs dirname)
+          echo "Lime src dir: $LIME_SRC"
+          for FILE in "$LIME_SRC"/*.cpp; do
+            grep -q '#include <SDL3_image/SDL_image.h>' "$FILE" || continue
+            grep -q '#include <climits>' "$FILE" && continue
+            sed -i '/#include <SDL3_image\/SDL_image.h>/a #include <climits>' "$FILE"
+            echo "patched: $FILE"
+          done
 
       - name: Cache Lime ndll
         id: cache_lime
