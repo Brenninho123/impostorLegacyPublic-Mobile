@@ -46,17 +46,17 @@ jobs:
       - name: Setup Lime from FunkinCrew fork
         run: |
           rm -rf .haxelib/lime
-          git clone https://github.com/FunkinCrew/lime .haxelib/lime/git
+          git clone --recurse-submodules https://github.com/FunkinCrew/lime .haxelib/lime/git
           git -C .haxelib/lime/git checkout 6421de16b9dfa4fb55c19f12db65d392a57585c8
           git -C .haxelib/lime/git submodule update --init --recursive --force
           haxelib dev lime .haxelib/lime/git
 
       - name: Patch Lime sources
         run: |
-          LIME_SRC=$(find .haxelib/lime/git -name "BMP.cpp" -path "*/graphics/format/*" 2>/dev/null | head -1 | xargs -I{} dirname {})
+          LIME_SRC=$(find .haxelib/lime/git/project -name "BMP.cpp" -path "*/graphics/format/*" 2>/dev/null | head -1 | xargs -I{} dirname {})
           if [ -z "$LIME_SRC" ]; then
-            echo "BMP.cpp not found, listing lime structure:"
-            find .haxelib/lime/git -maxdepth 4 -type d | head -30
+            echo "BMP.cpp not found, listing project structure:"
+            find .haxelib/lime/git/project -maxdepth 4 -type d 2>/dev/null | head -30 || echo "project dir missing"
             exit 1
           fi
           echo "Found: $LIME_SRC"
@@ -72,7 +72,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: .haxelib/lime/git/ndll
-          key: lime-ndll-${{ hashFiles('.haxelib/lime/git/.git/HEAD') }}-v1
+          key: lime-ndll-${{ hashFiles('.haxelib/lime/git/.git/HEAD') }}-v2
 
       - name: Rebuild Lime Linux
         if: steps.cache_lime.outputs.cache-hit != 'true'
