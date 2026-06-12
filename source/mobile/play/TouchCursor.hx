@@ -2,14 +2,12 @@ package mobile.play;
 
 import flixel.FlxSprite;
 import flixel.util.FlxColor;
-import flixel.util.FlxPool;
 
 class TouchCursor extends FlxSprite
 {
-	public var touchID:Int    = -1;
-	public var active:Bool    = false;
+	public var touchID:Int     = -1;
+	public var spawned:Bool    = false;
 
-	private var _fadeTimer:Float = 0.0;
 	private var _pulseTimer:Float = 0.0;
 	private var _baseScale:Float  = 1.0;
 
@@ -29,15 +27,14 @@ class TouchCursor extends FlxSprite
 		antialiasing = true;
 		alpha        = 0;
 		visible      = false;
-		active       = false;
+		spawned      = false;
 	}
 
 	public function spawn(x:Float, y:Float, id:Int):Void
 	{
 		touchID      = id;
-		active       = true;
+		spawned      = true;
 		visible      = true;
-		_fadeTimer   = 0.0;
 		_pulseTimer  = 0.0;
 		_baseScale   = RELEASE_SCALE;
 		alpha        = 0;
@@ -78,7 +75,7 @@ class TouchCursor extends FlxSprite
 
 	public function despawn():Void
 	{
-		active  = false;
+		spawned = false;
 		touchID = -1;
 		FlxTween.cancelTweensOf(this);
 		FlxTween.tween(this, {alpha: 0}, FADE_DURATION, {
@@ -96,7 +93,7 @@ class TouchCursor extends FlxSprite
 	{
 		super.update(elapsed);
 
-		if (!active || !visible) return;
+		if (!spawned || !visible) return;
 
 		_pulseTimer += elapsed * PULSE_SPEED;
 		var pulse:Float = 1.0 + Math.sin(_pulseTimer) * PULSE_AMOUNT * (_baseScale / RELEASE_SCALE);
@@ -116,11 +113,11 @@ class Cursor
 {
 	static final MAX_CURSORS:Int = 10;
 
-	private static var _cursors:Array<TouchCursor>       = [];
-	private static var _touchMap:Map<Int, TouchCursor>   = new Map();
-	private static var _initialized:Bool                 = false;
-	private static var _visible:Bool                     = true;
-	private static var _camera:Null<FlxCamera>           = null;
+	private static var _cursors:Array<TouchCursor>     = [];
+	private static var _touchMap:Map<Int, TouchCursor> = new Map();
+	private static var _initialized:Bool               = false;
+	private static var _visible:Bool                   = true;
+	private static var _camera:Null<FlxCamera>         = null;
 
 	public static function init(?camera:FlxCamera):Void
 	{
@@ -175,17 +172,13 @@ class Cursor
 	public static function show():Void
 	{
 		_visible = true;
-		for (c in _cursors) if (c.active) c.visible = true;
+		for (c in _cursors) if (c.spawned) c.visible = true;
 	}
 
 	public static function hide():Void
 	{
 		_visible = false;
-		for (c in _cursors)
-		{
-			c.despawn();
-			c.visible = false;
-		}
+		for (c in _cursors) { c.despawn(); c.visible = false; }
 		_touchMap.clear();
 	}
 
@@ -197,18 +190,14 @@ class Cursor
 
 	public static function setAlpha(value:Float):Void
 	{
-		for (c in _cursors) c.alpha = c.active ? value : 0;
+		for (c in _cursors) c.alpha = c.spawned ? value : 0;
 	}
 
 	public static function destroy():Void
 	{
 		if (!_initialized) return;
 
-		for (c in _cursors)
-		{
-			FlxG.state.remove(c, true);
-			c.destroy();
-		}
+		for (c in _cursors) { FlxG.state.remove(c, true); c.destroy(); }
 
 		_cursors     = [];
 		_touchMap    = new Map();
@@ -221,8 +210,7 @@ class Cursor
 
 	private static function _getFreeCursor():Null<TouchCursor>
 	{
-		for (c in _cursors)
-			if (!c.active) return c;
+		for (c in _cursors) if (!c.spawned) return c;
 		return null;
 	}
 }
