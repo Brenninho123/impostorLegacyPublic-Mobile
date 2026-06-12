@@ -4,7 +4,7 @@
 • Brenninho: Porter
 
 # Special Thanks (Mobile)
-• Lumi: Yml File (Thank You)
+• CPsP Team: Yml File (Thank You)
 
 ![](assets/legacy/images/branding/UpdogBlack.png)
 
