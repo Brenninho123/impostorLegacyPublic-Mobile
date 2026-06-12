@@ -21,7 +21,7 @@ import funkin.states.*;
 import funkin.states.editors.MasterEditorMenu;
 
 #if mobile
-import mobile.play.Cursor;
+import mobile.play.TouchCursor;
 #end
 
 class MainMenuState extends MusicBeatState
