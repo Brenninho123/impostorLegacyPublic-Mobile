@@ -32,7 +32,11 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             libgl1-mesa-dev \
-            libasound2-dev
+            libasound2-dev \
+            libwayland-dev \
+            wayland-protocols \
+            libxkbcommon-dev \
+            pkg-config
 
       - name: Cache Haxelib
         uses: actions/cache@v4
