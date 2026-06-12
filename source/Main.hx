@@ -18,19 +18,19 @@ import lime.system.JNI;
 @:nullSafety(Strict)
 class Main extends Sprite
 {
-	public static final PSYCH_VERSION:String   = '0.5.2h';
-	public static final NMV_VERSION:String     = '1.0';
-	public static final FUNKIN_VERSION:String  = '0.2.7';
-	public static final LEGACY_VERSION:String  = '1.1.0';
+	public static final PSYCH_VERSION:String  = '0.5.2h';
+	public static final NMV_VERSION:String    = '1.0';
+	public static final FUNKIN_VERSION:String = '0.2.7';
+	public static final LEGACY_VERSION:String = '1.1.0';
 
 	public static final startMeta =
 	{
-		width:        1280,
-		height:       720,
-		fps:          60,
-		skipSplash:   #if debug true #else false #end,
+		width:           1280,
+		height:          720,
+		fps:             60,
+		skipSplash:      #if debug true #else false #end,
 		startFullScreen: false,
-		initialState: funkin.states.TitleState
+		initialState:    funkin.states.TitleState
 	};
 
 	static function __init__():Void
@@ -45,10 +45,7 @@ class Main extends Sprite
 
 		#if android
 		Storage.init();
-		_requestAndroidPermissions(function():Void
-		{
-			_initGame();
-		});
+		_requestAndroidPermissions(function():Void { _initGame(); });
 		#else
 		_initGame();
 		#end
@@ -90,7 +87,6 @@ class Main extends Sprite
 		}, false, 100);
 
 		DebugDisplay.init();
-
 		FlxG.signals.gameResized.add(onResize);
 
 		#if DISABLE_TRACES
@@ -122,40 +118,30 @@ class Main extends Sprite
 		'android.permission.READ_MEDIA_AUDIO'
 	];
 
-	static final _PERMISSION_DENIED:Int  = -1;
-	static final _PERMISSION_GRANTED:Int =  0;
+	static final _GRANTED:Int = 0;
 
-	function _requestAndroidPermissions(onGranted:Void->Void):Void
+	function _requestAndroidPermissions(onDone:Void->Void):Void
 	{
 		var pending:Array<String> = _PERMISSIONS.filter(function(p:String):Bool
 		{
 			return !_hasPermission(p);
 		});
 
-		if (pending.length == 0) { onGranted(); return; }
+		if (pending.length == 0) { onDone(); return; }
 
 		_requestPermissions(pending, function(results:Map<String, Bool>):Void
 		{
-			var allGranted:Bool  = true;
 			var denied:Array<String> = [];
-
 			for (perm => granted in results)
-			{
-				if (!granted)
-				{
-					allGranted = false;
-					denied.push(perm.split('.').pop());
-				}
-			}
+				if (!granted) denied.push(perm.split('.').pop() ?? perm);
 
-			if (allGranted)
-			{
-				onGranted();
-			}
-			else
-			{
-				_showPermissionDialog(denied, onGranted);
-			}
+			if (denied.length == 0) { onDone(); return; }
+
+			_showNativeAlert(
+				'Storage Permission Required',
+				'Some permissions were denied: ${denied.join(", ")}.\nThe game will continue with limited functionality.',
+				onDone
+			);
 		});
 	}
 
@@ -163,12 +149,12 @@ class Main extends Sprite
 	{
 		try
 		{
-			var checkPermission = JNI.createStaticMethod(
+			var check = JNI.createStaticMethod(
 				'org/haxe/lime/GameActivity',
 				'checkCallingOrSelfPermission',
 				'(Ljava/lang/String;)I'
 			);
-			return checkPermission(permission) == _PERMISSION_GRANTED;
+			return (check(permission) : Int) == _GRANTED;
 		}
 		catch (e:Dynamic) { return false; }
 	}
@@ -182,97 +168,101 @@ class Main extends Sprite
 				'requestPermissions',
 				'([Ljava/lang/String;I)V'
 			);
-
-			var results:Map<String, Bool> = new Map();
-			var remaining:Int = permissions.length;
-
-			for (perm in permissions)
-			{
-				new flixel.util.FlxTimer().start(0.1, function(_):Void
-				{
-					results.set(perm, _hasPermission(perm));
-					remaining--;
-					if (remaining <= 0) callback(results);
-				});
-			}
-
 			requestMethod(permissions, 1001);
-		}
-		catch (e:Dynamic)
-		{
-			var results:Map<String, Bool> = new Map();
-			for (perm in permissions) results.set(perm, false);
-			callback(results);
-		}
-	}
-
-	function _showPermissionDialog(denied:Array<String>, onContinue:Void->Void):Void
-	{
-		try
-		{
-			var alertMethod = JNI.createStaticMethod(
-				'org/haxe/lime/GameActivity',
-				'runOnUiThread',
-				'(Ljava/lang/Runnable;)V'
-			);
-
-			var deniedStr:String = denied.join(', ');
-
-			var showDialog = JNI.createStaticMethod(
-				'android/app/AlertDialog$Builder',
-				'create',
-				'()Landroid/app/AlertDialog;'
-			);
-
-			_showNativeAlert(
-				'Storage Permission Required',
-				'This game needs storage access to load mods and save data.\n\nDenied: $deniedStr\n\nThe game will continue with limited functionality.',
-				'Continue',
-				'Open Settings',
-				function(openSettings:Bool):Void
-				{
-					if (openSettings) _openAppSettings();
-					onContinue();
-				}
-			);
-		}
-		catch (e:Dynamic)
-		{
-			onContinue();
-		}
-	}
-
-	function _showNativeAlert(title:String, message:String, positiveLabel:String, negativeLabel:String, callback:Bool->Void):Void
-	{
-		try
-		{
-			var showAlert = JNI.createStaticMethod(
-				'org/haxe/lime/GameActivity',
-				'showAlert',
-				'(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;)V'
-			);
-			showAlert(title, message, positiveLabel, negativeLabel);
 		}
 		catch (e:Dynamic) {}
 
-		new flixel.util.FlxTimer().start(0.5, function(_):Void { callback(false); });
+		var results:Map<String, Bool> = new Map();
+		var remaining:Int = permissions.length;
+
+		for (perm in permissions)
+		{
+			var p:String = perm;
+			new flixel.util.FlxTimer().start(0.8, function(_):Void
+			{
+				results.set(p, _hasPermission(p));
+				remaining--;
+				if (remaining <= 0) callback(results);
+			});
+		}
+	}
+
+	function _showNativeAlert(title:String, message:String, onClose:Void->Void):Void
+	{
+		try
+		{
+			var getContext = JNI.createStaticMethod(
+				'org/haxe/lime/GameActivity',
+				'getInstance',
+				'()Lorg/haxe/lime/GameActivity;'
+			);
+			var context:Dynamic = getContext();
+
+			var builderNew = JNI.createMemberMethod(
+				'android/app/AlertDialog_Builder',
+				'<init>',
+				'(Landroid/content/Context;)V'
+			);
+			var setTitle = JNI.createMemberMethod(
+				'android/app/AlertDialog_Builder',
+				'setTitle',
+				'(Ljava/lang/CharSequence;)Landroid/app/AlertDialog_Builder;'
+			);
+			var setMessage = JNI.createMemberMethod(
+				'android/app/AlertDialog_Builder',
+				'setMessage',
+				'(Ljava/lang/CharSequence;)Landroid/app/AlertDialog_Builder;'
+			);
+			var setButton = JNI.createMemberMethod(
+				'android/app/AlertDialog_Builder',
+				'setPositiveButton',
+				'(Ljava/lang/CharSequence;Landroid/content/DialogInterface_OnClickListener;)Landroid/app/AlertDialog_Builder;'
+			);
+			var buildMethod = JNI.createMemberMethod(
+				'android/app/AlertDialog_Builder',
+				'create',
+				'()Landroid/app/AlertDialog;'
+			);
+			var showMethod = JNI.createMemberMethod(
+				'android/app/AlertDialog',
+				'show',
+				'()V'
+			);
+
+			var builder:Dynamic = builderNew(context);
+			setTitle(builder, title);
+			setMessage(builder, message);
+			setButton(builder, 'OK', null);
+			var dialog:Dynamic = buildMethod(builder);
+			showMethod(dialog);
+		}
+		catch (e:Dynamic) {}
+
+		new flixel.util.FlxTimer().start(0.5, function(_):Void { onClose(); });
 	}
 
 	function _openAppSettings():Void
 	{
 		try
 		{
-			var openSettings = JNI.createStaticMethod(
+			var getContext = JNI.createStaticMethod(
 				'org/haxe/lime/GameActivity',
+				'getInstance',
+				'()Lorg/haxe/lime/GameActivity;'
+			);
+			var startActivity = JNI.createMemberMethod(
+				'android/app/Activity',
 				'startActivity',
 				'(Landroid/content/Intent;)V'
 			);
-			var intent = JNI.createStaticMethod(
+			var intentNew = JNI.createMemberMethod(
 				'android/content/Intent',
 				'<init>',
 				'(Ljava/lang/String;)V'
 			);
-			openSettings(intent('android.settings.APPLICATION_DETAILS_SETTINGS'));
+			var context:Dynamic = getContext();
+			var intent:Dynamic  = intentNew('android.settings.APPLICATION_DETAILS_SETTINGS');
+			startActivity(context, intent);
 		}
 		catch (e:Dynamic) {}
 	}
@@ -281,13 +271,9 @@ class Main extends Sprite
 	@:access(flixel.FlxCamera)
 	static function onResize(w:Int, h:Int):Void
 	{
-		final scale:Float = Math.max(1, Math.min(w / FlxG.width, h / FlxG.height));
-
 		if (FlxG.cameras != null)
-		{
 			for (i in FlxG.cameras.list)
 				if (i != null && i.filters != null) resetSpriteCache(i.flashSprite);
-		}
 
 		if (FlxG.game != null) resetSpriteCache(FlxG.game);
 	}
