@@ -12,32 +12,27 @@ import funkin.states.*;
 import funkin.objects.*;
 import funkin.objects.menu.AmongControls;
 
+#if mobile
+import mobile.play.TouchCursor;
+#end
+
 class OptionsState extends MusicBeatState
 {
 	public static var onPlayState:Bool = false;
-	
+
 	var options:Array<String> = [
-		'controls',
-		'adjustdelay',
-		'language',
-		'gameplay',
-		'graphics',
-		'visualsui',
-		'misc',
-		'credits'
+		'controls', 'adjustdelay', 'language',
+		'gameplay', 'graphics', 'visualsui', 'misc', 'credits'
 	];
-	
+
 	var __openedOption:Null<String> = null;
-	
 	var optionTexts:FlxTypedGroup<FlxText>;
-	
+
 	private static var curSelected:Int = 0;
 	public static var menuBG:FlxSprite;
-	
-	// For blocking everything
-	var blockAllInput:Bool = false;
-	
-	var blockInput:Bool = false;
+
+	var blockAllInput:Bool  = false;
+	var blockInput:Bool     = false;
 	var pendingSubstate:Null<String> = null;
 	var titleText:FlxText;
 	var versionText:FlxText;
@@ -46,38 +41,50 @@ class OptionsState extends MusicBeatState
 	var menuBackButton:FlxSprite;
 	var mouseControlActive:Bool = true;
 	var hoveredOption:Int = -1;
-	
-	static final OPTION_LABEL_BASE_SIZE:Int = 26;
-	static final OPTION_LABEL_MIN_SIZE:Int = 14;
-	static final OPTION_LABEL_MAX_LINES:Int = 2;
-	
+
+	#if mobile
+	var _mobileBackBtn:FlxText;
+	var _swipeStartY:Float    = 0;
+	var _swipeConsumed:Bool   = false;
+	var _tapStartY:Float      = 0;
+	var _tapStartX:Float      = 0;
+	static final SWIPE_THRESHOLD:Float = 40;
+	static final TAP_MAX_DIST:Float    = 20;
+	#end
+
+	static final OPTION_LABEL_BASE_SIZE:Int  = 26;
+	static final OPTION_LABEL_MIN_SIZE:Int   = 14;
+	static final OPTION_LABEL_MAX_LINES:Int  = 2;
+
+	var buttonBaseX:Float   = 95;
+	var buttonBaseY:Float   = 112;
+	var buttonSpacing:Float = 65;
+
+	var bottomControls:AmongControls;
+
 	function byeByeHomePanel(visible:Bool):Void
 	{
-		titleText.visible = visible;
+		titleText.visible   = visible;
 		versionText.visible = visible;
-		artImage.visible = visible;
+		artImage.visible    = visible;
+		#if mobile
+		if (_mobileBackBtn != null) _mobileBackBtn.visible = visible;
+		#end
 	}
-	
-	// left panel button layout
-	var buttonBaseX:Float = 95;
-	var buttonBaseY:Float = 112;
-	var buttonSpacing:Float = 65;
-	
-	var bottomControls:AmongControls;
-	
-	public function openSelectedSubstate(label:String)
+
+	public function openSelectedSubstate(label:String):Void
 	{
 		if (label == 'adjustdelay')
 		{
 			FlxG.switchState(funkin.states.options.NoteOffsetState.new);
 			return;
 		}
-		
+
 		byeByeHomePanel(false);
 		blockInput = true;
-		
+
 		scriptGroup.call('onOptionsSubmenu', [label]);
-		
+
 		switch (label)
 		{
 			case 'controls':
@@ -96,252 +103,336 @@ class OptionsState extends MusicBeatState
 			case 'credits':
 				openSubState(new funkin.states.substates.CreditsRollSubState(true, resumeMenuMusic, resumeMenuMusic));
 		}
-		__openedOption = label;
+		__openedOption  = label;
 		pendingSubstate = null;
 	}
-	
+
 	function resumeMenuMusic():Void
 	{
 		FunkinSound.playMusic(Paths.music('freakyMenu'));
 	}
-	
-	override function create()
+
+	function _goBack():Void
 	{
-		DiscordClient.changePresence("Options Menu");
-		
+		FlxG.sound.play(Paths.sound('cancelMenu'));
+		if (onPlayState)
+		{
+			FlxG.switchState(PlayState.new);
+			FlxG.sound.music.volume = 0;
+			onPlayState = false;
+		}
+		else FlxG.switchState(MainMenuState.new);
+	}
+
+	override function create():Void
+	{
+		DiscordClient.changePresence('Options Menu');
+
 		initStateScript();
 		persistentUpdate = true;
-		
+
 		if (isHardcodedState())
 		{
 			var ext:String = 'menu/options/';
-			
-			// scrolling stars
+
 			var starsBG = new FlxBackdrop(Paths.image('menu/common/starBG'));
 			starsBG.scrollFactor.set();
 			starsBG.velocity.x = -4.5;
-			starsBG.zIndex = -2;
+			starsBG.zIndex     = -2;
 			add(starsBG);
-			
+
 			var starsFG = new FlxBackdrop(Paths.image('menu/common/starFG'));
 			starsFG.scrollFactor.set();
 			starsFG.velocity.x = -9;
-			starsFG.zIndex = -1;
+			starsFG.zIndex     = -1;
 			add(starsFG);
-			
+
 			var thingy:FlxSprite = new FlxSprite(50, 30).loadGraphic(Paths.image(ext + 'thingy'));
-			thingy.antialiasing = ClientPrefs.globalAntialiasing;
+			thingy.antialiasing  = ClientPrefs.globalAntialiasing;
 			add(thingy);
-			
+
 			var optionsHeaderY:Float = 30 + (ClientPrefs.language == 'arabic' ? -20 : 0);
 			optionsHeader = new FlxText(75, optionsHeaderY, 0, Lang.str('options'), 62);
 			optionsHeader.setFormat(Paths.font('AmaticSC-Bold.ttf'), 50, FlxColor.WHITE, FlxTextAlign.CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-			optionsHeader.borderSize = 2;
+			optionsHeader.borderSize  = 2;
 			optionsHeader.antialiasing = ClientPrefs.globalAntialiasing;
 			add(optionsHeader);
-			
+
+			#if !mobile
 			menuBackButton = new FlxSprite(1100, 30).loadGraphic(Paths.image('menu/common/menuBack'));
 			menuBackButton.antialiasing = ClientPrefs.globalAntialiasing;
 			add(menuBackButton);
-			
-			// left panel options
+			#end
+
 			optionTexts = new FlxTypedGroup<FlxText>();
 			add(optionTexts);
-			
+
 			for (i in 0...options.length)
 			{
 				var txt:FlxText = new FlxText(buttonBaseX, buttonBaseY + (buttonSpacing * i), 320, Lang.str('opt_category_' + options[i]));
-				txt.setFormat(Paths.font("vcr.ttf"), OPTION_LABEL_BASE_SIZE, FlxColor.WHITE, FlxTextAlign.LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-				txt.borderSize = 2;
-				txt.antialiasing = ClientPrefs.globalAntialiasing;
+				txt.setFormat(Paths.font('vcr.ttf'), OPTION_LABEL_BASE_SIZE, FlxColor.WHITE, FlxTextAlign.LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+				txt.borderSize    = 2;
+				txt.antialiasing  = ClientPrefs.globalAntialiasing;
 				@:privateAccess txt._defaultFormat.leading = -6;
 				txt.ID = i;
 				fitLeftOptionLabel(txt);
 				optionTexts.add(txt);
 			}
-			
-			// right panel stuff
+
 			artImage = new FlxSprite(500, 275 + 100).loadGraphic(Paths.image(ext + 'art'));
 			artImage.antialiasing = ClientPrefs.globalAntialiasing;
 			artImage.y -= Math.round(artImage.height * .5);
 			add(artImage);
-			
+
 			titleText = new FlxText(480, artImage.y, 700, 'VS IMPOSTOR: LEGACY');
-			titleText.setFormat(Paths.font("vcr"), 42, FlxColor.WHITE, FlxTextAlign.CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+			titleText.setFormat(Paths.font('vcr'), 42, FlxColor.WHITE, FlxTextAlign.CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
 			titleText.y -= (titleText.height + 16);
-			titleText.borderSize = 2;
+			titleText.borderSize   = 2;
 			titleText.antialiasing = ClientPrefs.globalAntialiasing;
 			add(titleText);
-			
+
 			versionText = new FlxText(480, artImage.y + artImage.height + 20, 700, Main.LEGACY_VERSION);
-			versionText.setFormat(Paths.font("vcr"), 28, FlxColor.WHITE, FlxTextAlign.CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-			versionText.borderSize = 1.5;
+			versionText.setFormat(Paths.font('vcr'), 28, FlxColor.WHITE, FlxTextAlign.CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+			versionText.borderSize   = 1.5;
 			versionText.antialiasing = ClientPrefs.globalAntialiasing;
 			add(versionText);
-			
+
+			#if mobile
+			_mobileBackBtn = new FlxText(0, 0, 0, 'B', 52);
+			_mobileBackBtn.setFormat(Paths.font('vcr.ttf'), 52, FlxColor.WHITE, FlxTextAlign.CENTER, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
+			_mobileBackBtn.borderSize   = 3;
+			_mobileBackBtn.antialiasing = ClientPrefs.globalAntialiasing;
+			_mobileBackBtn.scrollFactor.set(0, 0);
+			_mobileBackBtn.x = FlxG.width  - _mobileBackBtn.width  - 18;
+			_mobileBackBtn.y = FlxG.height - _mobileBackBtn.height - 18;
+			add(_mobileBackBtn);
+			#else
 			bottomControls = new AmongControls([
-				['arrow', 'select'], // select
-				['enter', 'conf'], // conf
-				['esc', 'back'] // back
+				['arrow', 'select'],
+				['enter', 'conf'],
+				['esc',   'back']
 			], true);
 			bottomControls.zIndex = 12;
 			add(bottomControls);
-			
+			#end
+
 			changeSelection();
 			refreshOptionFonts();
 			byeByeHomePanel(true);
 		}
-		
+
 		super.create();
-		
+
+		#if mobile
+		Cursor.init();
+		#end
+
 		scriptGroup.call('onCreatePost', []);
 	}
-	
-	override function closeSubState()
+
+	override function closeSubState():Void
 	{
 		if (subState is funkin.backend.BaseTransitionState)
 		{
 			super.closeSubState();
-			
 			return;
 		}
-		
+
 		__openedOption = null;
-		blockInput = false;
+		blockInput     = false;
 		refreshOptionFonts();
-		
+
 		if (pendingSubstate == null) byeByeHomePanel(true);
-		
+
 		super.closeSubState();
 	}
-	
+
 	override function destroy():Void
 	{
+		#if mobile
+		Cursor.destroy();
+		#end
 		ClientPrefs.flush();
-		ClientPrefs.reloadControls(); // lets just reload the controls here
+		ClientPrefs.reloadControls();
 		super.destroy();
 	}
-	
-	/**
-	 * Reloads everything that has to do with language
-	**/
-	function refreshOptionFonts()
+
+	function refreshOptionFonts():Void
 	{
 		optionsHeader.text = Lang.str('options');
 		optionsHeader.font = Paths.font('AmaticSC-Bold.ttf');
-		optionsHeader.y = (38 + Math.round((optionsHeader.size - optionsHeader.height) * .5));
-		
+		optionsHeader.y    = (38 + Math.round((optionsHeader.size - optionsHeader.height) * .5));
+
+		#if !mobile
 		@:privateAccess bottomControls.refreshBar();
-		
+		#end
+
 		for (txt in optionTexts.members)
 		{
 			txt.text = Lang.str('opt_category_' + options[txt.ID]);
 			fitLeftOptionLabel(txt);
 		}
-		
+
 		scriptGroup.call('onRefreshLang', []);
 		refreshOptionVisuals();
 	}
-	
+
 	function fitLeftOptionLabel(txt:FlxText):Void
 	{
-		var size:Int = OPTION_LABEL_BASE_SIZE;
+		var size:Int   = OPTION_LABEL_BASE_SIZE;
 		txt.fieldWidth = 300;
 		txt.setFormat(Paths.font('vcr.ttf'), size, txt.color, FlxTextAlign.LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-		txt.borderSize = 2;
-		txt.textField.wordWrap = true;
-		txt.textField.multiline = true;
-		
+		txt.borderSize            = 2;
+		txt.textField.wordWrap    = true;
+		txt.textField.multiline   = true;
+
 		while (size > OPTION_LABEL_MIN_SIZE && txt.textField.numLines > OPTION_LABEL_MAX_LINES)
 		{
 			size--;
 			txt.setFormat(Paths.font('vcr.ttf'), size, txt.color, FlxTextAlign.LEFT, FlxTextBorderStyle.OUTLINE, FlxColor.BLACK);
-			txt.borderSize = 2;
-			txt.textField.wordWrap = true;
+			txt.borderSize          = 2;
+			txt.textField.wordWrap  = true;
 			txt.textField.multiline = true;
 		}
-		
+
 		if (txt.textField.numLines > OPTION_LABEL_MAX_LINES)
 		{
 			var baseText:String = txt.text;
 			while (baseText.length > 1 && txt.textField.numLines > OPTION_LABEL_MAX_LINES)
 			{
 				var cut:Int = baseText.lastIndexOf(' ');
-				baseText = (cut > 0 ? baseText.substring(0, cut) : baseText.substring(0, baseText.length - 1));
-				txt.text = baseText + '...';
+				baseText    = (cut > 0 ? baseText.substring(0, cut) : baseText.substring(0, baseText.length - 1));
+				txt.text    = baseText + '...';
 			}
 		}
-		
+
 		var slotY:Float = buttonBaseY + (buttonSpacing * txt.ID);
 		txt.y = Math.round(slotY + Math.max(0, (buttonSpacing - txt.height) * 0.5));
 	}
-	
-	function refreshOptionVisuals()
+
+	function refreshOptionVisuals():Void
 	{
 		if (blockAllInput) return;
 		for (txt in optionTexts.members)
 		{
 			txt.alpha = 1;
 			txt.color = 0xFFC9C9C9;
-			
-			if (txt.ID == hoveredOption && txt.ID != curSelected)
-			{
-				txt.color = FlxColor.WHITE;
-			}
-			if (txt.ID == curSelected)
-			{
-				txt.color = 0xFFFFE066;
-			}
+			if (txt.ID == hoveredOption && txt.ID != curSelected) txt.color = FlxColor.WHITE;
+			if (txt.ID == curSelected)                            txt.color = 0xFFFFE066;
 		}
 	}
-	
-	override function update(elapsed:Float)
+
+	#if mobile
+	function _handleTouch():Void
 	{
-		super.update(elapsed);
-		
-		if (isHardcodedState())
+		if (blockAllInput || blockInput) return;
+
+		for (touch in FlxG.touches.list)
 		{
-			hoveredOption = -1;
-			
-			if (FlxG.mouse.justMoved || FlxG.mouse.justPressed)
+			if (touch.justPressed)
 			{
-				mouseControlActive = true;
+				_tapStartX     = touch.screenX;
+				_tapStartY     = touch.screenY;
+				_swipeStartY   = touch.screenY;
+				_swipeConsumed = false;
 			}
-			if (controls.UI_UP_P || controls.UI_DOWN_P || controls.ACCEPT || controls.BACK)
+
+			if (touch.pressed && !_swipeConsumed)
 			{
-				mouseControlActive = false;
-			}
-			
-			if (subState != null && subState is funkin.states.substates.CreditsRollSubState) mouseControlActive = false;
-			
-			if (FlxG.mouse.justPressed && FlxG.mouse.overlaps(menuBackButton) && !blockAllInput)
-			{
-				FlxG.sound.play(Paths.sound('cancelMenu'));
-				if (onPlayState)
+				var dy:Float = touch.screenY - _swipeStartY;
+				if (Math.abs(dy) > SWIPE_THRESHOLD)
 				{
-					FlxG.switchState(PlayState.new);
-					FlxG.sound.music.volume = 0;
-					onPlayState = false;
-				}
-				else FlxG.switchState(MainMenuState.new);
-				return;
-			}
-			
-			if (mouseControlActive && !blockAllInput)
-			{
-				// left bar mouse
-				var themouseshit2 = FlxG.mouse;
-				for (txt in optionTexts.members)
-				{
-					if (!themouseshit2.overlaps(txt)) continue;
-					hoveredOption = txt.ID;
-					if (themouseshit2.justPressed)
+					_swipeConsumed = true;
+					var moved:Bool = false;
+					if (dy < 0 && curSelected > 0)                   { curSelected--; moved = true; }
+					else if (dy > 0 && curSelected < options.length - 1) { curSelected++; moved = true; }
+					if (moved)
 					{
+						FlxG.sound.play(Paths.sound('scrollMenu'), 0.5);
+						refreshOptionVisuals();
+					}
+				}
+			}
+
+			if (touch.justReleased && !_swipeConsumed)
+			{
+				var distX:Float = Math.abs(touch.screenX - _tapStartX);
+				var distY:Float = Math.abs(touch.screenY - _tapStartY);
+
+				if (distX < TAP_MAX_DIST && distY < TAP_MAX_DIST)
+				{
+					var pt = new FlxPoint(touch.screenX, touch.screenY);
+
+					if (_mobileBackBtn != null && _mobileBackBtn.visible && _mobileBackBtn.overlapsPoint(pt))
+					{
+						_goBack();
+						return;
+					}
+
+					for (txt in optionTexts.members)
+					{
+						if (!txt.overlapsPoint(pt)) continue;
+
 						if (txt.ID != curSelected)
 						{
 							curSelected = txt.ID;
 							changeSelection(0, true);
 						}
+						else
+						{
+							if (blockInput)
+							{
+								if (options[curSelected] == 'adjustdelay')
+									FlxG.switchState(funkin.states.options.NoteOffsetState.new);
+								else if (__openedOption != null && __openedOption != options[curSelected])
+								{
+									pendingSubstate = options[curSelected];
+									refreshOptionFonts();
+									openSelectedSubstate(options[curSelected]);
+								}
+							}
+							else openSelectedSubstate(options[curSelected]);
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
+	#end
+
+	override function update(elapsed:Float):Void
+	{
+		super.update(elapsed);
+
+		if (isHardcodedState())
+		{
+			hoveredOption = -1;
+
+			#if mobile
+			Cursor.update();
+			_handleTouch();
+			#else
+			if (FlxG.mouse.justMoved || FlxG.mouse.justPressed)  mouseControlActive = true;
+			if (controls.UI_UP_P || controls.UI_DOWN_P || controls.ACCEPT || controls.BACK) mouseControlActive = false;
+
+			if (subState != null && subState is funkin.states.substates.CreditsRollSubState) mouseControlActive = false;
+
+			if (FlxG.mouse.justPressed && FlxG.mouse.overlaps(menuBackButton) && !blockAllInput)
+			{
+				_goBack();
+				return;
+			}
+
+			if (mouseControlActive && !blockAllInput)
+			{
+				for (txt in optionTexts.members)
+				{
+					if (!FlxG.mouse.overlaps(txt)) continue;
+					hoveredOption = txt.ID;
+					if (FlxG.mouse.justPressed)
+					{
+						if (txt.ID != curSelected) { curSelected = txt.ID; changeSelection(0, true); }
 						if (blockInput)
 						{
 							if (options[curSelected] == 'adjustdelay') FlxG.switchState(funkin.states.options.NoteOffsetState.new);
@@ -357,41 +448,29 @@ class OptionsState extends MusicBeatState
 					break;
 				}
 			}
-			
+			#end
+
 			refreshOptionVisuals();
-			
+
+			#if !mobile
 			if (!blockInput && !blockAllInput)
 			{
-				if (controls.UI_UP_P) changeSelection(-1);
+				if (controls.UI_UP_P)   changeSelection(-1);
 				if (controls.UI_DOWN_P) changeSelection(1);
-				
-				if (controls.BACK)
-				{
-					FlxG.sound.play(Paths.sound('cancelMenu'));
-					if (onPlayState)
-					{
-						FlxG.switchState(PlayState.new);
-						FlxG.sound.music.volume = 0;
-						onPlayState = false;
-					}
-					else FlxG.switchState(MainMenuState.new);
-				}
-				
-				if (controls.ACCEPT)
-				{
-					openSelectedSubstate(options[curSelected]);
-				}
+				if (controls.BACK)  { _goBack(); return; }
+				if (controls.ACCEPT) openSelectedSubstate(options[curSelected]);
 			}
+			#end
 		}
 	}
-	
-	function changeSelection(change:Int = 0, ?fromMouse:Bool = false)
+
+	function changeSelection(change:Int = 0, ?fromMouse:Bool = false):Void
 	{
 		curSelected += change;
-		if (curSelected < 0) curSelected = options.length - 1;
-		if (curSelected >= options.length) curSelected = 0;
+		if (curSelected < 0)                  curSelected = options.length - 1;
+		if (curSelected >= options.length)    curSelected = 0;
 		refreshOptionVisuals();
-		
+
 		var snd = fromMouse ? 'scrollMenu' : 'hover';
 		FlxG.sound.play(Paths.sound(snd), fromMouse ? 1 : 0.5);
 	}
