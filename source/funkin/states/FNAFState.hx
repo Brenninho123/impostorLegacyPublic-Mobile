@@ -16,39 +16,39 @@ class FNAFState extends MusicBeatState
 
 	var camTarget:FlxSprite;
 	var hudCam:FlxCamera;
-	var camDrag:Float       = 0.06;
-	var camRangeX:Float     = 200;
-	var camRangeY:Float     = 30;
-	var cameraUnlocked:Bool = false;
-	var clickCooldown:Float = 0;
-	var screenZooming:Bool  = false;
+	var camDrag:Float        = 0.06;
+	var camRangeX:Float      = 200;
+	var camRangeY:Float      = 30;
+	var cameraUnlocked:Bool  = false;
+	var clickCooldown:Float  = 0;
+	var screenZooming:Bool   = false;
 
 	var dialogueLines:Array<String>;
 	var postDialogueLines:Array<String>;
-	var dialogueIndex:Int         = 0;
-	var postDialogueIndex:Int     = 0;
-	var dialogueActive:Bool       = false;
-	var dialogueEnded:Bool        = false;
-	var inPostDialogue:Bool       = false;
+	var dialogueIndex:Int          = 0;
+	var postDialogueIndex:Int      = 0;
+	var dialogueActive:Bool        = false;
+	var dialogueEnded:Bool         = false;
+	var inPostDialogue:Bool        = false;
 	var monitorDialogueActive:Bool = false;
-	var advanceKeyHeld:Bool       = false;
-	var advanceMouseHeld:Bool     = false;
+	var advanceKeyHeld:Bool        = false;
+	var advanceMouseHeld:Bool      = false;
 
 	var dlgBlackScreen:FlxSprite;
 	var dlgOverlay:FlxSprite;
 	var dlgText:FlxTypeText;
 	var rtlDisplayText:FlxText;
 	var rtlWrapMeasure:FlxText;
-	var rtlMode:Bool     = false;
+	var rtlMode:Bool      = false;
 	var rtlFullText:String = '';
 	var dlgYesBro:FlxSprite;
 
 	var glow:FlxSprite;
-	var glowHovering:Bool         = false;
+	var glowHovering:Bool        = false;
 	var leftscreen:FlxSprite;
-	var leftscreenHovering:Bool   = false;
+	var leftscreenHovering:Bool  = false;
 	var rightscreen:FlxSprite;
-	var rightscreenHovering:Bool  = false;
+	var rightscreenHovering:Bool = false;
 
 	var passwordActive:Bool  = false;
 	var passwordReady:Bool   = false;
@@ -77,18 +77,18 @@ class FNAFState extends MusicBeatState
 
 	var FNAFShaderThanksRozebud:FunkinRuntimeShader;
 	var vhsShader:Null<FunkinRuntimeShader> = null;
-	var vhsOn:Bool       = false;
-	var vhsFrame:Int     = 0;
+	var vhsOn:Bool        = false;
+	var vhsFrame:Int      = 0;
 	var shaderDepth:Float = 4.0;
 	var depthTween:FlxTween;
 
-	var videoPlaying:Bool      = false;
-	var audioPlaying:Bool      = false;
+	var videoPlaying:Bool       = false;
+	var audioPlaying:Bool       = false;
 	var secretAudio:FlxSound;
-	var imageShowing:Bool      = false;
+	var imageShowing:Bool       = false;
 	var imageTransitioning:Bool = false;
-	var crashAfterVideo:Bool   = false;
-	var isLoading:Bool         = false;
+	var crashAfterVideo:Bool    = false;
+	var isLoading:Bool          = false;
 
 	#if VIDEOS_ALLOWED
 	var secretVideo:FunkinVideoSprite;
@@ -180,10 +180,10 @@ class FNAFState extends MusicBeatState
 
 		rtlMode = Lang.hasSpecial('rightToLeft');
 
-		var tX:Float = 170;
-		var tY:Float = FlxG.height - 108;
-		var tW:Float = FlxG.width - 340;
-		var rtlTextY:Float = tY - (rtlMode ? 30 : 0);
+		var tX:Int  = 170;
+		var tY:Int  = Std.int(FlxG.height - 108);
+		var tW:Int  = Std.int(FlxG.width  - 340);
+		var rtlTextY:Int = tY - (rtlMode ? 30 : 0);
 
 		dlgText = new FlxTypeText(tX, tY, tW, '', 30);
 		dlgText.font         = Paths.font('liber.ttf');
@@ -216,7 +216,7 @@ class FNAFState extends MusicBeatState
 		dlgYesBro.scrollFactor.set(0, 0);
 		dlgYesBro.scale.set(0.5, 0.5);
 		dlgYesBro.updateHitbox();
-		dlgYesBro.x       = rtlMode ? (tX + 10) : (tX + tW - dlgYesBro.width - 10);
+		dlgYesBro.x       = rtlMode ? (tX + 10) : (tX + tW - Std.int(dlgYesBro.width) - 10);
 		dlgYesBro.y       = tY + 58;
 		dlgYesBro.alpha   = 0;
 		dlgYesBro.cameras = [hudCam];
@@ -224,12 +224,12 @@ class FNAFState extends MusicBeatState
 
 		if (ClientPrefs.fnafStateVisited)
 		{
-			dlgOverlay.visible = false;
-			dlgText.alpha      = 0;
+			dlgOverlay.visible   = false;
+			dlgText.alpha        = 0;
 			rtlDisplayText.alpha = 0;
-			dlgYesBro.alpha    = 0;
-			camTarget.alpha    = 0;
-			cameraUnlocked     = true;
+			dlgYesBro.alpha      = 0;
+			camTarget.alpha      = 0;
+			cameraUnlocked       = true;
 			crossfadeMusic('amb', 1.0, 0.6);
 			FlxTween.tween(dlgBlackScreen, {alpha: 0}, 1.0, {
 				ease: FlxEase.quadOut,
@@ -326,11 +326,7 @@ class FNAFState extends MusicBeatState
 
 	function advanceDialogue():Void
 	{
-		if (!dialogueEnded)
-		{
-			dlgText.skip();
-			return;
-		}
+		if (!dialogueEnded) { dlgText.skip(); return; }
 
 		if (inPostDialogue)
 		{
@@ -341,25 +337,21 @@ class FNAFState extends MusicBeatState
 			}
 			else
 			{
-				dialogueActive  = false;
-				inPostDialogue  = false;
-				cameraUnlocked  = true;
+				dialogueActive = false;
+				inPostDialogue = false;
+				cameraUnlocked = true;
 				FlxTween.tween(dlgOverlay, {alpha: 0}, 0.25, {
 					ease: FlxEase.quadOut,
 					onComplete: function(_) { dlgOverlay.visible = false; }
 				});
-				FlxTween.tween(dlgText,    {alpha: 0}, 0.2, {ease: FlxEase.quadOut});
-				FlxTween.tween(dlgYesBro,  {alpha: 0}, 0.2);
+				FlxTween.tween(dlgText,   {alpha: 0}, 0.2, {ease: FlxEase.quadOut});
+				FlxTween.tween(dlgYesBro, {alpha: 0}, 0.2);
 			}
 			return;
 		}
 
 		dialogueIndex++;
-		if (dialogueIndex < dialogueLines.length)
-		{
-			beginLine(dialogueLines, dialogueIndex);
-			return;
-		}
+		if (dialogueIndex < dialogueLines.length) { beginLine(dialogueLines, dialogueIndex); return; }
 
 		dialogueActive = false;
 		FlxTween.tween(dlgBlackScreen, {alpha: 0}, 2.5, {
@@ -413,7 +405,6 @@ class FNAFState extends MusicBeatState
 		for (paragraph in source.split('\n'))
 		{
 			if (paragraph.trim().length < 1) { wrappedLines.push(''); continue; }
-
 			var words = paragraph.split(' ');
 			var currentLine:String = '';
 			for (i in 0...words.length)
@@ -440,12 +431,12 @@ class FNAFState extends MusicBeatState
 
 		FlxG.sound.play(Paths.sound('computerOpen'));
 		crossfadeMusic('cpu', 0.35, 0.6);
-		passwordActive  = true;
-		vhsOn           = true;
+		passwordActive = true;
+		vhsOn          = true;
 		applyCameraFilters();
-		passwordReady   = false;
-		enteredCode     = '';
-		glowHovering    = false;
+		passwordReady  = false;
+		enteredCode    = '';
+		glowHovering   = false;
 
 		FlxTween.cancelTweensOf(glow);
 		glow.alpha = 0;
@@ -459,9 +450,9 @@ class FNAFState extends MusicBeatState
 		compInput.alpha  = 1;
 		compCursor.alpha = 1;
 		compStatus.alpha = 1;
-		compImage.visible       = false;
-		compMusicImg.visible    = false;
-		compMusicLabel.visible  = false;
+		compImage.visible      = false;
+		compMusicImg.visible   = false;
+		compMusicLabel.visible = false;
 
 		compTitle.text  = Lang.str('weirdroute7');
 		compStatus.text = '';
@@ -477,7 +468,7 @@ class FNAFState extends MusicBeatState
 			ease: FlxEase.quadOut,
 			onComplete: function(_):Void
 			{
-				screenZooming = false;
+				screenZooming      = false;
 				compBg.visible     = true;
 				compPanel.visible  = true;
 				compTitle.visible  = true;
@@ -492,11 +483,7 @@ class FNAFState extends MusicBeatState
 				FlxTween.tween(compStatic, {alpha: 0}, 0.55, {
 					ease: FlxEase.quadIn,
 					startDelay: 0.3,
-					onComplete: function(_):Void
-					{
-						compStatic.visible = false;
-						passwordReady      = true;
-					}
+					onComplete: function(_):Void { compStatic.visible = false; passwordReady = true; }
 				});
 			}
 		});
@@ -522,7 +509,7 @@ class FNAFState extends MusicBeatState
 		});
 		tweenDepth(4.0, 0.25);
 
-		compBg.visible     = false;
+		compBg.visible         = false;
 		FlxTween.cancelTweensOf(compStatic);
 		compStatic.visible     = false;
 		compPanel.visible      = false;
@@ -547,9 +534,8 @@ class FNAFState extends MusicBeatState
 
 	function pauseComputer():Void
 	{
-		passwordActive = false;
-		enteredCode    = '';
-
+		passwordActive     = false;
+		enteredCode        = '';
 		compPanel.visible  = true;
 		compPanel.alpha    = 1;
 		compTitle.visible  = false;
@@ -560,8 +546,8 @@ class FNAFState extends MusicBeatState
 		compMusicImg.visible   = false;
 		compMusicLabel.visible = false;
 		FlxTween.cancelTweensOf(compStatic);
-		compStatic.visible  = false;
-		compLoader.visible  = false;
+		compStatic.visible = false;
+		compLoader.visible = false;
 		if (hintTextA != null) hintTextA.visible = false;
 	}
 
@@ -574,8 +560,7 @@ class FNAFState extends MusicBeatState
 		compBg.visible = false;
 		add(compBg);
 
-		var hintStr:String = ClientPrefs.fnafHintCode;
-		hintTextA = new FlxText(FlxG.width * 0.5, FlxG.height * 0.65, 0, hintStr, 28);
+		hintTextA = new FlxText(FlxG.width * 0.5, FlxG.height * 0.65, 0, ClientPrefs.fnafHintCode, 28);
 		hintTextA.setFormat(Paths.font('vcr.ttf'), 28, FlxColor.fromRGB(0, 255, 80), 'left');
 		hintTextA.alpha = 0.45;
 		hintTextA.scrollFactor.set(0, 0);
@@ -677,17 +662,17 @@ class FNAFState extends MusicBeatState
 		cursorVisible = true;
 		inputCooldown = 0;
 
-		compTitle.text = Lang.str('weirdroute7');
-		compInput.text = '';
+		compTitle.text   = Lang.str('weirdroute7');
+		compInput.text   = '';
 		compCursor.text  = '|';
 		compCursor.alpha = 1;
 		compStatus.text  = '';
 		compStatus.color = FlxColor.WHITE;
 		compStatus.alpha = 1;
-		compImage.visible    = false;
-		compImage.alpha      = 0;
-		compMusicImg.visible = false;
-		compMusicImg.alpha   = 1;
+		compImage.visible      = false;
+		compImage.alpha        = 0;
+		compMusicImg.visible   = false;
+		compMusicImg.alpha     = 1;
 		compMusicLabel.visible = false;
 		compMusicLabel.alpha   = 1;
 		compMusicLabel.text    = '';
@@ -752,7 +737,7 @@ class FNAFState extends MusicBeatState
 
 	function showLoader():Void
 	{
-		isLoading = true;
+		isLoading          = true;
 		layoutPC();
 		FlxG.sound.play(Paths.sound('click'));
 		compLoader.visible = true;
@@ -779,18 +764,9 @@ class FNAFState extends MusicBeatState
 		cursorTimer += FlxG.elapsed;
 		if (cursorTimer >= 0.45) { cursorTimer = 0; cursorVisible = !cursorVisible; }
 
-		if (inputCooldown > 0)
-		{
-			inputCooldown -= FlxG.elapsed;
-			if (inputCooldown < 0) inputCooldown = 0;
-		}
+		if (inputCooldown > 0) { inputCooldown -= FlxG.elapsed; if (inputCooldown < 0) inputCooldown = 0; }
 
-		if (FlxG.keys.justPressed.ESCAPE)
-		{
-			if (!passwordReady) return;
-			closeComputer();
-			return;
-		}
+		if (FlxG.keys.justPressed.ESCAPE) { if (!passwordReady) return; closeComputer(); return; }
 
 		if (inputCooldown <= 0 && FlxG.keys.justPressed.BACKSPACE && enteredCode.length > 0)
 		{
@@ -855,9 +831,9 @@ class FNAFState extends MusicBeatState
 	{
 		var code:String = enteredCode.toUpperCase();
 		FlxTween.cancelTweensOf(compStatus);
-		compStatus.alpha = 1;
-		compStatus.color = FlxColor.WHITE;
-		compStatus.text  = '';
+		compStatus.alpha  = 1;
+		compStatus.color  = FlxColor.WHITE;
+		compStatus.text   = '';
 		compImage.visible = false;
 
 		switch (code)
@@ -865,32 +841,32 @@ class FNAFState extends MusicBeatState
 			case 'DANKBARS':
 				PlayState.prepareForSong('dank-bars');
 				FlxG.switchState(PlayState.new);
-			case 'SECRET':    playAudio('secretsong');
-			case 'DIRECT':    playAudio('directwip');
-			case 'REACTOR':   playAudio('reactor');
-			case 'FINALE':    playAudio('finalewip');
-			case 'RIVALS':    playAudio('rivals');
-			case 'RASPBERRY': playAudio('raspberry');
-			case 'RAID':      playAudio('raid');
-			case 'CHALLENGE': showImage('challenge');
-			case 'SNEEP':     showImage('sneep');
-			case 'FUNNI342':  showImage('funni');
-			case 'RUBATO':    showImage('rubato');
-			case 'DREAMJOB':  showImage('dreamjob');
+			case 'SECRET':       playAudio('secretsong');
+			case 'DIRECT':       playAudio('directwip');
+			case 'REACTOR':      playAudio('reactor');
+			case 'FINALE':       playAudio('finalewip');
+			case 'RIVALS':       playAudio('rivals');
+			case 'RASPBERRY':    playAudio('raspberry');
+			case 'RAID':         playAudio('raid');
+			case 'CHALLENGE':    showImage('challenge');
+			case 'SNEEP':        showImage('sneep');
+			case 'FUNNI342':     showImage('funni');
+			case 'RUBATO':       showImage('rubato');
+			case 'DREAMJOB':     showImage('dreamjob');
 			case 'TRIPLETROUBLE': showImage('trouble');
-			case 'STORY':     showImage('Story');
-			case 'NOOB49':    showImage('noob49');
-			case 'TRINKETS':  showImage('trinkets');
-			case 'EBK':       showImage('EBK');
+			case 'STORY':        showImage('Story');
+			case 'NOOB49':       showImage('noob49');
+			case 'TRINKETS':     showImage('trinkets');
+			case 'EBK':          showImage('EBK');
 			case 'WHITEPARASITE': showImage('whiteparasite');
 			case 'COMMUNITYGAME': errorMessage('hi bro whats up');
-			case 'PENKARU':   errorMessage('NO EXCLUSIVE CONTENT FOR YOU');
-			case 'DEFEAT':    errorMessage(ClientPrefs.scaryDefeat ? 'HELLSCAPE' : 'Did you mean: #@1$!@#$?');
-			case 'LIGHTSDOWN': errorMessage('Did you mean: LIGHTSOUT?');
-			case 'LIGHTSOUT':  errorMessage('Did you mean: LIGHTSOFF?');
-			case 'LIGHTSOFF':  errorMessage('Did you mean: LIGHTSDOWN?');
-			case 'FLIPPY':    errorMessage('Did you mean: FLIPPYFLOW?');
-			case 'DK':        errorMessage('R.I.P');
+			case 'PENKARU':      errorMessage('NO EXCLUSIVE CONTENT FOR YOU');
+			case 'DEFEAT':       errorMessage(ClientPrefs.scaryDefeat ? 'HELLSCAPE' : 'Did you mean: #@1$!@#$?');
+			case 'LIGHTSDOWN':   errorMessage('Did you mean: LIGHTSOUT?');
+			case 'LIGHTSOUT':    errorMessage('Did you mean: LIGHTSOFF?');
+			case 'LIGHTSOFF':    errorMessage('Did you mean: LIGHTSDOWN?');
+			case 'FLIPPY':       errorMessage('Did you mean: FLIPPYFLOW?');
+			case 'DK':           errorMessage('R.I.P');
 			case 'BROIMPOSTOR':
 				#if VIDEOS_ALLOWED
 				playVideo('broimpostor');
@@ -1015,20 +991,9 @@ class FNAFState extends MusicBeatState
 			secretVideo.onEnd(() -> {
 				if (secretAudio != null) { secretAudio.stop(); secretAudio.destroy(); secretAudio = null; }
 				if (secretVideo != null) { remove(secretVideo); secretVideo.destroy(); secretVideo = null; }
-				if (crashAfterVideo)
-				{
-					ClientPrefs.scaryDefeat = true;
-					ClientPrefs.flush();
-					crashAfterVideo = false;
-					Sys.exit(0);
-				}
+				if (crashAfterVideo) { ClientPrefs.scaryDefeat = true; ClientPrefs.flush(); crashAfterVideo = false; Sys.exit(0); }
 				showLoader();
-				new FlxTimer().start(1.0, function(_):Void
-				{
-					hideLoader();
-					videoPlaying = false;
-					returnToComputer();
-				});
+				new FlxTimer().start(1.0, function(_):Void { hideLoader(); videoPlaying = false; returnToComputer(); });
 			});
 
 			var vidPath  = Paths.video(Paths.sanitize(key));
@@ -1062,9 +1027,7 @@ class FNAFState extends MusicBeatState
 			else
 			{
 				videoPlaying = false;
-				remove(secretVideo);
-				secretVideo.destroy();
-				secretVideo = null;
+				remove(secretVideo); secretVideo.destroy(); secretVideo = null;
 				returnToComputer();
 			}
 		});
@@ -1096,12 +1059,7 @@ class FNAFState extends MusicBeatState
 				compMusicImg.visible   = false;
 				compMusicLabel.visible = false;
 				showLoader();
-				new FlxTimer().start(1.0, function(_):Void
-				{
-					hideLoader();
-					audioPlaying = false;
-					returnToComputer();
-				});
+				new FlxTimer().start(1.0, function(_):Void { hideLoader(); audioPlaying = false; returnToComputer(); });
 			});
 
 			if (secretAudio != null)
@@ -1127,12 +1085,7 @@ class FNAFState extends MusicBeatState
 		compMusicImg.visible   = false;
 		compMusicLabel.visible = false;
 		showLoader();
-		new FlxTimer().start(1.0, function(_):Void
-		{
-			hideLoader();
-			audioPlaying = false;
-			returnToComputer();
-		});
+		new FlxTimer().start(1.0, function(_):Void { hideLoader(); audioPlaying = false; returnToComputer(); });
 	}
 
 	function showImage(imageKey:String):Void
@@ -1168,12 +1121,7 @@ class FNAFState extends MusicBeatState
 		compImage.visible      = false;
 		compMusicLabel.visible = false;
 		showLoader();
-		new FlxTimer().start(1.0, function(_):Void
-		{
-			hideLoader();
-			returnToComputer();
-			imageTransitioning = false;
-		});
+		new FlxTimer().start(1.0, function(_):Void { hideLoader(); returnToComputer(); imageTransitioning = false; });
 	}
 
 	override function update(elapsed:Float):Void
@@ -1188,12 +1136,7 @@ class FNAFState extends MusicBeatState
 
 		if (imageTransitioning || isLoading) { tickVHS(); return; }
 
-		if (imageShowing)
-		{
-			if (FlxG.keys.justPressed.ESCAPE) hideImageAndReturn();
-			tickVHS();
-			return;
-		}
+		if (imageShowing) { if (FlxG.keys.justPressed.ESCAPE) hideImageAndReturn(); tickVHS(); return; }
 
 		if (audioPlaying)
 		{
@@ -1224,10 +1167,10 @@ class FNAFState extends MusicBeatState
 			rtlDisplayText.updateHitbox();
 		}
 
-		var keyDown  = FlxG.keys.pressed.ENTER || FlxG.keys.pressed.SPACE;
-		var keyEdge  = keyDown && !advanceKeyHeld;
-		var mouseDown = FlxG.mouse.pressed;
-		var mouseEdge = mouseDown && !advanceMouseHeld;
+		var keyDown:Bool   = FlxG.keys.pressed.ENTER || FlxG.keys.pressed.SPACE;
+		var keyEdge:Bool   = keyDown && !advanceKeyHeld;
+		var mouseDown:Bool = FlxG.mouse.pressed;
+		var mouseEdge:Bool = mouseDown && !advanceMouseHeld;
 
 		if (monitorDialogueActive && (keyEdge || mouseEdge))
 		{
@@ -1262,9 +1205,8 @@ class FNAFState extends MusicBeatState
 		glow.x = camTarget.x + camTarget.width  * 0.5 - glow.width  * 0.5;
 		glow.y = camTarget.y + camTarget.height  * 0.5 - glow.height * 0.5 - 22.5;
 
-		leftscreen.x = camTarget.x + camTarget.width  * 0.5 - leftscreen.width  * 0.5 - 435;
-		leftscreen.y = camTarget.y + camTarget.height  * 0.5 - leftscreen.height * 0.5 + 22;
-
+		leftscreen.x  = camTarget.x + camTarget.width  * 0.5 - leftscreen.width  * 0.5 - 435;
+		leftscreen.y  = camTarget.y + camTarget.height  * 0.5 - leftscreen.height * 0.5 + 22;
 		rightscreen.x = camTarget.x + camTarget.width  * 0.5 - rightscreen.width  * 0.5 + 430;
 		rightscreen.y = camTarget.y + camTarget.height  * 0.5 - rightscreen.height * 0.5 - 76;
 
@@ -1319,9 +1261,9 @@ class FNAFState extends MusicBeatState
 			}
 		}
 
-		glowHovering         = updateHover(glow,        glowHovering,        0.75);
-		leftscreenHovering   = updateHover(leftscreen,  leftscreenHovering,  0.3);
-		rightscreenHovering  = updateHover(rightscreen, rightscreenHovering, 0.3);
+		glowHovering        = updateHover(glow,        glowHovering,        0.75);
+		leftscreenHovering  = updateHover(leftscreen,  leftscreenHovering,  0.3);
+		rightscreenHovering = updateHover(rightscreen, rightscreenHovering, 0.3);
 	}
 
 	function updateHover(spr:FlxSprite, wasHovering:Bool, peak:Float):Bool
@@ -1354,11 +1296,7 @@ class FNAFState extends MusicBeatState
 		for (w in weights) totalWeight += w;
 		final selected:Float = FlxG.random.float(0, totalWeight);
 		var count:Float = 0;
-		for (i in 0...v.length - 1)
-		{
-			count += weights[i];
-			if (selected < count) return v[i];
-		}
+		for (i in 0...v.length - 1) { count += weights[i]; if (selected < count) return v[i]; }
 		return v[v.length - 1];
 	}
 }
