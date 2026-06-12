@@ -13,6 +13,8 @@ import funkin.backend.DebugDisplay;
 #if android
 import mobile.Storage;
 import lime.system.JNI;
+import sys.FileSystem;
+import sys.io.File;
 #end
 
 @:nullSafety(Strict)
@@ -33,6 +35,23 @@ class Main extends Sprite
 		initialState:    funkin.states.TitleState
 	};
 
+	#if android
+	static final _PERMISSIONS:Array<String> = [
+		'android.permission.READ_EXTERNAL_STORAGE',
+		'android.permission.WRITE_EXTERNAL_STORAGE',
+		'android.permission.READ_MEDIA_IMAGES',
+		'android.permission.READ_MEDIA_VIDEO',
+		'android.permission.READ_MEDIA_AUDIO'
+	];
+
+	static final _GRANTED:Int = 0;
+
+	static final _COPY_DIRS:Array<String> = [
+		'assets',
+		'content'
+	];
+	#end
+
 	static function __init__():Void
 	{
 		funkin.utils.MacroUtil.haxeVersionEnforcement();
@@ -45,7 +64,13 @@ class Main extends Sprite
 
 		#if android
 		Storage.init();
-		_requestAndroidPermissions(function():Void { _initGame(); });
+		_requestAndroidPermissions(function():Void
+		{
+			_copyAssetsToExternal(function():Void
+			{
+				_initGame();
+			});
+		});
 		#else
 		_initGame();
 		#end
@@ -110,16 +135,6 @@ class Main extends Sprite
 	}
 
 	#if android
-	static final _PERMISSIONS:Array<String> = [
-		'android.permission.READ_EXTERNAL_STORAGE',
-		'android.permission.WRITE_EXTERNAL_STORAGE',
-		'android.permission.READ_MEDIA_IMAGES',
-		'android.permission.READ_MEDIA_VIDEO',
-		'android.permission.READ_MEDIA_AUDIO'
-	];
-
-	static final _GRANTED:Int = 0;
-
 	function _requestAndroidPermissions(onDone:Void->Void):Void
 	{
 		var pending:Array<String> = _PERMISSIONS.filter(function(p:String):Bool
@@ -129,20 +144,35 @@ class Main extends Sprite
 
 		if (pending.length == 0) { onDone(); return; }
 
-		_requestPermissions(pending, function(results:Map<String, Bool>):Void
+		try
 		{
-			var denied:Array<String> = [];
-			for (perm => granted in results)
-				if (!granted) denied.push(perm.split('.').pop() ?? perm);
-
-			if (denied.length == 0) { onDone(); return; }
-
-			_showNativeAlert(
-				'Storage Permission Required',
-				'Some permissions were denied: ${denied.join(", ")}.\nThe game will continue with limited functionality.',
-				onDone
+			var requestMethod = JNI.createStaticMethod(
+				'org/haxe/lime/GameActivity',
+				'requestPermissions',
+				'([Ljava/lang/String;I)V'
 			);
-		});
+			requestMethod(pending, 1001);
+		}
+		catch (e:Dynamic) {}
+
+		var elapsed:Float  = 0.0;
+		var maxWait:Float  = 15.0;
+		var interval:Float = 0.3;
+
+		var timer = new flixel.util.FlxTimer();
+		timer.start(interval, function(t:flixel.util.FlxTimer):Void
+		{
+			elapsed += interval;
+			var allDone:Bool = true;
+			for (p in pending)
+				if (!_hasPermission(p)) { allDone = false; break; }
+
+			if (allDone || elapsed >= maxWait)
+			{
+				t.cancel();
+				onDone();
+			}
+		}, 0);
 	}
 
 	function _hasPermission(permission:String):Bool
@@ -159,112 +189,121 @@ class Main extends Sprite
 		catch (e:Dynamic) { return false; }
 	}
 
-	function _requestPermissions(permissions:Array<String>, callback:Map<String, Bool>->Void):Void
+	function _copyAssetsToExternal(onDone:Void->Void):Void
 	{
-		try
-		{
-			var requestMethod = JNI.createStaticMethod(
-				'org/haxe/lime/GameActivity',
-				'requestPermissions',
-				'([Ljava/lang/String;I)V'
-			);
-			requestMethod(permissions, 1001);
-		}
-		catch (e:Dynamic) {}
+		var externalBase:String = Storage.externalStorage;
+		if (externalBase == null || externalBase.length == 0) { onDone(); return; }
 
-		var results:Map<String, Bool> = new Map();
-		var remaining:Int = permissions.length;
+		var versionFile:String = externalBase + '/.version';
+		var currentVersion:String = LEGACY_VERSION;
 
-		for (perm in permissions)
+		if (FileSystem.exists(versionFile))
 		{
-			var p:String = perm;
-			new flixel.util.FlxTimer().start(0.8, function(_):Void
+			try
 			{
-				results.set(p, _hasPermission(p));
-				remaining--;
-				if (remaining <= 0) callback(results);
+				var saved:String = StringTools.trim(File.getContent(versionFile));
+				if (saved == currentVersion) { onDone(); return; }
+			}
+			catch (e:Dynamic) {}
+		}
+
+		sys.thread.Thread.create(function():Void
+		{
+			try
+			{
+				for (dir in _COPY_DIRS)
+					_copyDir('', dir, externalBase + '/' + dir);
+
+				_ensureDir(externalBase + '/content');
+
+				FileSystem.createDirectory(haxe.io.Path.directory(versionFile));
+				File.saveContent(versionFile, currentVersion);
+			}
+			catch (e:Dynamic) {}
+
+			lime.app.Application.current.window.onUpdate.add(function(_):Void {});
+			Sys.sleep(0);
+
+			haxe.MainLoop.runInMainThread(function():Void
+			{
+				onDone();
 			});
-		}
+		});
 	}
 
-	function _showNativeAlert(title:String, message:String, onClose:Void->Void):Void
+	function _copyDir(assetPrefix:String, srcDir:String, destDir:String):Void
 	{
-		try
-		{
-			var getContext = JNI.createStaticMethod(
-				'org/haxe/lime/GameActivity',
-				'getInstance',
-				'()Lorg/haxe/lime/GameActivity;'
-			);
-			var context:Dynamic = getContext();
+		_ensureDir(destDir);
 
-			var builderNew = JNI.createMemberMethod(
-				'android/app/AlertDialog_Builder',
-				'<init>',
-				'(Landroid/content/Context;)V'
-			);
-			var setTitle = JNI.createMemberMethod(
-				'android/app/AlertDialog_Builder',
-				'setTitle',
-				'(Ljava/lang/CharSequence;)Landroid/app/AlertDialog_Builder;'
-			);
-			var setMessage = JNI.createMemberMethod(
-				'android/app/AlertDialog_Builder',
-				'setMessage',
-				'(Ljava/lang/CharSequence;)Landroid/app/AlertDialog_Builder;'
-			);
-			var setButton = JNI.createMemberMethod(
-				'android/app/AlertDialog_Builder',
-				'setPositiveButton',
-				'(Ljava/lang/CharSequence;Landroid/content/DialogInterface_OnClickListener;)Landroid/app/AlertDialog_Builder;'
-			);
-			var buildMethod = JNI.createMemberMethod(
-				'android/app/AlertDialog_Builder',
-				'create',
-				'()Landroid/app/AlertDialog;'
-			);
-			var showMethod = JNI.createMemberMethod(
-				'android/app/AlertDialog',
-				'show',
-				'()V'
-			);
+		var fullSrc:String = assetPrefix.length > 0 ? '$assetPrefix/$srcDir' : srcDir;
 
-			var builder:Dynamic = builderNew(context);
-			setTitle(builder, title);
-			setMessage(builder, message);
-			setButton(builder, 'OK', null);
-			var dialog:Dynamic = buildMethod(builder);
-			showMethod(dialog);
-		}
+		var entries:Array<String> = [];
+		try { entries = lime.utils.Assets.list().filter(function(p:String):Bool { return p.startsWith(fullSrc + '/') || p == fullSrc; }); }
 		catch (e:Dynamic) {}
 
-		new flixel.util.FlxTimer().start(0.5, function(_):Void { onClose(); });
+		if (entries.length == 0)
+		{
+			try
+			{
+				if (FileSystem.exists(fullSrc) && FileSystem.isDirectory(fullSrc))
+					entries = FileSystem.readDirectory(fullSrc).map(function(f:String):String { return '$fullSrc/$f'; });
+			}
+			catch (e:Dynamic) {}
+		}
+
+		for (entry in entries)
+		{
+			var rel:String  = entry.substr(fullSrc.length + 1);
+			var dest:String = '$destDir/$rel';
+
+			try
+			{
+				if (FileSystem.isDirectory(entry))
+				{
+					_copyDir(assetPrefix, '$srcDir/$rel', dest);
+				}
+				else
+				{
+					_ensureDir(haxe.io.Path.directory(dest));
+					if (!FileSystem.exists(dest))
+						File.saveBytes(dest, File.getBytes(entry));
+				}
+			}
+			catch (e:Dynamic) {}
+		}
+
+		try
+		{
+			var assetList = lime.utils.Assets.list();
+			for (assetPath in assetList)
+			{
+				if (!StringTools.startsWith(assetPath, srcDir + '/') && assetPath != srcDir) continue;
+
+				var rel:String  = assetPath.substr(srcDir.length + 1);
+				var dest:String = '$destDir/$rel';
+
+				if (FileSystem.exists(dest)) continue;
+
+				_ensureDir(haxe.io.Path.directory(dest));
+				try
+				{
+					var bytes = lime.utils.Assets.getBytes(assetPath);
+					if (bytes != null) File.saveBytes(dest, bytes);
+				}
+				catch (e:Dynamic) {}
+			}
+		}
+		catch (e:Dynamic) {}
 	}
 
-	function _openAppSettings():Void
+	function _ensureDir(path:String):Void
 	{
-		try
+		if (path == null || path.length == 0) return;
+		if (!FileSystem.exists(path))
 		{
-			var getContext = JNI.createStaticMethod(
-				'org/haxe/lime/GameActivity',
-				'getInstance',
-				'()Lorg/haxe/lime/GameActivity;'
-			);
-			var startActivity = JNI.createMemberMethod(
-				'android/app/Activity',
-				'startActivity',
-				'(Landroid/content/Intent;)V'
-			);
-			var intentNew = JNI.createMemberMethod(
-				'android/content/Intent',
-				'<init>',
-				'(Ljava/lang/String;)V'
-			);
-			var context:Dynamic = getContext();
-			var intent:Dynamic  = intentNew('android.settings.APPLICATION_DETAILS_SETTINGS');
-			startActivity(context, intent);
+			try { FileSystem.createDirectory(path); }
+			catch (e:Dynamic) {}
 		}
-		catch (e:Dynamic) {}
 	}
 	#end
 
