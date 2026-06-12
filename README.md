@@ -1,5 +1,11 @@
 # VS IMPOSTOR LEGACY (Mobile Port)
 
+# Mobile Port
+• Brenninho: Porter
+
+# Special Thanks (Mobile)
+• Lumi: Yml File (Thank You)
+
 ![](assets/legacy/images/branding/UpdogBlack.png)
 
 Made with [NightmareVision Engine](https://github.com/NMVTeam/NightmareVision)! Read the [VS IMPOSTOR LEGACY changelog](LEGACY.md) here.
