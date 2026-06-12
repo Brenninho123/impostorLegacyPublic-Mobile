@@ -194,7 +194,7 @@ class Main extends Sprite
 		var externalBase:String = Storage.externalStorage;
 		if (externalBase == null || externalBase.length == 0) { onDone(); return; }
 
-		var versionFile:String = externalBase + '/.version';
+		var versionFile:String    = externalBase + '/.version';
 		var currentVersion:String = LEGACY_VERSION;
 
 		if (FileSystem.exists(versionFile))
@@ -212,17 +212,14 @@ class Main extends Sprite
 			try
 			{
 				for (dir in _COPY_DIRS)
-					_copyDir('', dir, externalBase + '/' + dir);
+					_copyDir(dir, externalBase + '/' + dir);
 
 				_ensureDir(externalBase + '/content');
 
-				FileSystem.createDirectory(haxe.io.Path.directory(versionFile));
+				_ensureDir(haxe.io.Path.directory(versionFile));
 				File.saveContent(versionFile, currentVersion);
 			}
 			catch (e:Dynamic) {}
-
-			lime.app.Application.current.window.onUpdate.add(function(_):Void {});
-			Sys.sleep(0);
 
 			haxe.MainLoop.runInMainThread(function():Void
 			{
@@ -231,66 +228,55 @@ class Main extends Sprite
 		});
 	}
 
-	function _copyDir(assetPrefix:String, srcDir:String, destDir:String):Void
+	function _copyDir(srcDir:String, destDir:String):Void
 	{
 		_ensureDir(destDir);
 
-		var fullSrc:String = assetPrefix.length > 0 ? '$assetPrefix/$srcDir' : srcDir;
-
-		var entries:Array<String> = [];
-		try { entries = lime.utils.Assets.list().filter(function(p:String):Bool { return p.startsWith(fullSrc + '/') || p == fullSrc; }); }
+		var assetList:Array<String> = [];
+		try
+		{
+			assetList = lime.utils.Assets.list().filter(function(p:String):Bool
+			{
+				return StringTools.startsWith(p, srcDir + '/') || p == srcDir;
+			});
+		}
 		catch (e:Dynamic) {}
 
-		if (entries.length == 0)
+		for (assetPath in assetList)
 		{
-			try
-			{
-				if (FileSystem.exists(fullSrc) && FileSystem.isDirectory(fullSrc))
-					entries = FileSystem.readDirectory(fullSrc).map(function(f:String):String { return '$fullSrc/$f'; });
-			}
-			catch (e:Dynamic) {}
-		}
-
-		for (entry in entries)
-		{
-			var rel:String  = entry.substr(fullSrc.length + 1);
+			var rel:String  = assetPath.substr(srcDir.length + 1);
 			var dest:String = '$destDir/$rel';
 
+			if (rel.length == 0) continue;
+			if (FileSystem.exists(dest)) continue;
+
+			_ensureDir(haxe.io.Path.directory(dest));
 			try
 			{
-				if (FileSystem.isDirectory(entry))
-				{
-					_copyDir(assetPrefix, '$srcDir/$rel', dest);
-				}
-				else
-				{
-					_ensureDir(haxe.io.Path.directory(dest));
-					if (!FileSystem.exists(dest))
-						File.saveBytes(dest, File.getBytes(entry));
-				}
+				var bytes = lime.utils.Assets.getBytes(assetPath);
+				if (bytes != null) File.saveBytes(dest, bytes);
 			}
 			catch (e:Dynamic) {}
 		}
 
 		try
 		{
-			var assetList = lime.utils.Assets.list();
-			for (assetPath in assetList)
+			if (FileSystem.exists(srcDir) && FileSystem.isDirectory(srcDir))
 			{
-				if (!StringTools.startsWith(assetPath, srcDir + '/') && assetPath != srcDir) continue;
-
-				var rel:String  = assetPath.substr(srcDir.length + 1);
-				var dest:String = '$destDir/$rel';
-
-				if (FileSystem.exists(dest)) continue;
-
-				_ensureDir(haxe.io.Path.directory(dest));
-				try
+				for (file in FileSystem.readDirectory(srcDir))
 				{
-					var bytes = lime.utils.Assets.getBytes(assetPath);
-					if (bytes != null) File.saveBytes(dest, bytes);
+					var src:String  = '$srcDir/$file';
+					var dest:String = '$destDir/$file';
+
+					if (FileSystem.isDirectory(src))
+						_copyDir(src, dest);
+					else if (!FileSystem.exists(dest))
+					{
+						_ensureDir(haxe.io.Path.directory(dest));
+						try { File.saveBytes(dest, File.getBytes(src)); }
+						catch (e:Dynamic) {}
+					}
 				}
-				catch (e:Dynamic) {}
 			}
 		}
 		catch (e:Dynamic) {}
