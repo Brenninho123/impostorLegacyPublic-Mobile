@@ -17,7 +17,7 @@
 	<window if="switch" orientation="landscape" fullscreen="true" width="0" height="0" resizable="true" />
 
 	<define name="MODS_ALLOWED" if="desktop" />
-	<define name="VIDEOS_ALLOWED" if="desktop" />
+	<define name="VIDEOS_ALLOWED" if="mobile" />
 	<define name="DISCORD_ALLOWED" if="desktop" />
 
 	<classpath name="source" />
