@@ -1,131 +1,84 @@
 name: Build Android
 
-on:
-  workflow_dispatch:
-  workflow_call:
-    inputs:
-      buildFlags:
-        required: false
-        type: string
-
-env:
-  HAXE_VERSION: 4.3.7
-
+on: workflow_dispatch
 jobs:
-  Android:
+   Android:
     name: Build Android
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
-
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - name: Checkout Repository
+        uses: actions/checkout@v6.0.2
 
       - name: Setup Haxe
-        uses: krdlab/setup-haxe@master
+        uses: krdlab/setup-haxe@v2.1.0
         with:
-          haxe-version: ${{ env.HAXE_VERSION }}
+          haxe-version: 4.3.7
 
-      - name: Install System Dependencies
+      - name: Install Linux system deps
         run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            libgl1-mesa-dev \
-            libasound2-dev \
-            libwayland-dev \
-            wayland-protocols \
-            libxkbcommon-dev \
-            pkg-config
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential gcc-13 g++-13 vlc libvlc-dev libvlccore-dev vlc-bin \
+            libwayland-dev libwayland-bin wayland-protocols libasound2-dev \
+            libpulse-dev libjack-jackd2-dev libpipewire-0.3-dev libgl1-mesa-dev \
+            libegl1-mesa-dev libglu1-mesa-dev libdbus-1-dev libudev-dev \
+            libxkbcommon-dev libx11-dev libxext-dev libx11-xcb-dev libxfixes-dev \
+            libxss-dev libxrender-dev libxrandr-dev libxcursor-dev libxi-dev \
+            libxinerama-dev libxxf86vm-dev libgbm-dev libdrm-dev libdecor-0-dev \
+            libvulkan-dev pkg-config
 
-      - name: Cache Haxelib
-        uses: actions/cache@v4
-        with:
-          path: ~/haxelib
-          key: haxelib-android-${{ hashFiles('.hxpkg') }}
-          restore-keys: haxelib-android-
-
-      - name: Install Haxe Libraries
+      - name: Prepare Android Lime rebuild
+        env:
+          CC: gcc-13
+          CXX: g++-13
         run: |
-          haxelib setup ~/haxelib --quiet
+          set -euo pipefail
+          haxelib setup ~/haxelib
+          haxelib install hxcpp > /dev/null --quiet
           haxelib install hxpkg --quiet
           haxelib run hxpkg install
-
-      - name: Cache Lime ndll
-        id: cache_lime_ndll
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/haxelib/lime/git/ndll/Linux64
-            ~/haxelib/lime/git/ndll/Android
-          key: lime-ndll-${{ hashFiles('.hxpkg') }}-v1
-
-      - name: Rebuild Lime Linux
-        if: steps.cache_lime_ndll.outputs.cache-hit != 'true'
+          rm -rf .haxelib/lime
+          git clone https://github.com/FunkinCrew/lime .haxelib/lime/git
+          git -C .haxelib/lime/git checkout 6421de16b9dfa4fb55c19f12db65d392a57585c8
+          git -C .haxelib/lime/git submodule update --init --recursive --force
+          haxelib dev lime .haxelib/lime/git
+          
+      - name: Rebuild Linux Lime ndll
+        env:
+          CC: gcc-13
+          CXX: g++-13
         run: |
-          haxelib run lime rebuild cpp -release -DHXCPP_COMPILE_THREADS=$(nproc)
-          if [ ! -f ~/haxelib/lime/git/ndll/Linux64/lime.ndll ]; then
-            find ~/haxelib/lime -name "lime.ndll" 2>/dev/null || true
-            echo "ERROR: lime.ndll not found after rebuild"
+          haxelib run lime rebuild cpp -release
+          if [ ! -f .haxelib/lime/git/ndll/Linux64/lime.ndll ]; then
+            echo "ERROR: Missing Lime ndll"
             exit 1
           fi
-          echo "lime.ndll OK"
-
-      - name: Accept Android Licenses
-        run: yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses
-
+          
       - name: Configure Android
         run: |
-          haxelib run lime config ANDROID_SDK      $ANDROID_HOME
+          haxelib run lime setup android
+          haxelib run lime config ANDROID_SDK $ANDROID_HOME
           haxelib run lime config ANDROID_NDK_ROOT $ANDROID_NDK_LATEST_HOME
-          haxelib run lime config JAVA_HOME        $JAVA_HOME_17_X64
-          haxelib run lime config ANDROID_SETUP    true
+          haxelib run lime config JAVA_HOME $JAVA_HOME_17_X64
+          haxelib run lime config ANDROID_SETUP true
 
-      - name: Rebuild Lime Android
-        if: steps.cache_lime_ndll.outputs.cache-hit != 'true'
+      - name: Rebuild Android Lime so
+        env:
+          CC: gcc-13
+          CXX: g++-13
         run: |
-          haxelib run lime rebuild android -release -DHXCPP_COMPILE_THREADS=$(nproc)
-          if [ ! -f ~/haxelib/lime/git/ndll/Android/liblime-64.so ]; then
-            find ~/haxelib/lime -name "liblime*.so" 2>/dev/null || true
-            echo "ERROR: liblime-64.so not found after rebuild"
+          haxelib run lime rebuild android -release
+          if [ ! -f .haxelib/lime/git/ndll/Android/liblime-64.so ]; then
+            echo "ERROR: Missing Liblime 64 so"
             exit 1
           fi
-          echo "liblime-64.so OK"
-
-      - name: Set Compiler Threads
-        run: echo "CPUS=$(nproc)" >> $GITHUB_ENV
 
       - name: Compile
-        run: |
-          FLAGS="-release -DHXCPP_COMPILE_THREADS=${{ env.CPUS }} -DHXCPP_OPTIMIZE_FOR_CPUID=1"
-          if [ -n "${{ inputs.buildFlags }}" ]; then
-            FLAGS="$FLAGS ${{ inputs.buildFlags }}"
-          fi
-          haxelib run lime build android $FLAGS
-
-      - name: Verify APK
-        run: |
-          APK=$(find export/release/android -name "*.apk" | head -1)
-          if [ -z "$APK" ]; then
-            echo "APK not found"
-            exit 1
-          fi
-          echo "APK: $APK ($(du -sh $APK | cut -f1))"
-          echo "APK_PATH=$APK" >> $GITHUB_ENV
+        run: haxelib run lime build android -final -D DLC
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
-          name: Android
-          path: ${{ env.APK_PATH }}
+          name: ImpostorLegacy (Android)
+          path: export/release/android/bin/app/build/outputs/apk/*
           if-no-files-found: error
-
-      - name: Upload Logs on Failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-logs-android
-          path: |
-            export/*/cpp/build/**.log
-            *.log
-          if-no-files-found: ignore
