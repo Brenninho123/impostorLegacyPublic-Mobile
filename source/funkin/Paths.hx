@@ -2,13 +2,11 @@ package funkin;
 
 import haxe.io.Path;
 import haxe.Json;
-
 import openfl.system.System;
 import openfl.utils.AssetType;
 import openfl.utils.Assets;
 import openfl.display.BitmapData;
 import openfl.media.Sound;
-
 import flixel.FlxG;
 import flixel.graphics.frames.FlxAtlasFrames;
 import flixel.graphics.FlxGraphic;
@@ -31,12 +29,14 @@ class Paths
 	#end
 
 	public static inline final CORE_DIRECTORY = #if ASSET_REDIRECT trail + 'assets/legacy' #else 'assets' #end;
-	public static inline final MODS_DIRECTORY = #if ASSET_REDIRECT trail + 'content' #else 'content' #end;
+	public static inline final MODS_DIRECTORY  = #if ASSET_REDIRECT trail + 'content' #else 'content' #end;
 
 	public static var DEFAULT_FONT:String = 'vcr.ttf';
 
 	@:allow(funkin.backend.FunkinCache)
 	static var tempAtlasFramesCache:Map<String, FlxAtlasFrames> = [];
+
+	public static var overrideMode:Null<PathsTestMode> = null;
 
 	public static function getStoragePrefix():String
 	{
@@ -73,7 +73,6 @@ class Paths
 		final external:String = Storage.getExternalFilePath('assets/$file');
 		if (sys.FileSystem.exists(external)) return external;
 		#end
-
 		return '$CORE_DIRECTORY/$file';
 	}
 
@@ -121,8 +120,8 @@ class Paths
 
 	public static function sound(key:String, ?parentFolder:String, checkMods:Bool = true):Sound
 	{
-		final key = findFileWithExts('sounds/$key', ['ogg', 'wav'], parentFolder, checkMods);
-		return FunkinAssets.getSound(key);
+		final k = findFileWithExts('sounds/$key', ['ogg', 'wav'], parentFolder, checkMods);
+		return FunkinAssets.getSound(k);
 	}
 
 	public static inline function soundRandom(key:String, min:Int = 0, max:Int = 0, ?parentFolder:String, checkMods:Bool = true):Sound
@@ -132,55 +131,40 @@ class Paths
 
 	public static inline function music(key:String, ?parentFolder:String, checkMods:Bool = true):Sound
 	{
-		final key = findFileWithExts('music/$key', ['ogg', 'wav'], parentFolder, checkMods);
-		return FunkinAssets.getSound(key);
+		final k = findFileWithExts('music/$key', ['ogg', 'wav'], parentFolder, checkMods);
+		return FunkinAssets.getSound(k);
 	}
 
 	public static inline function trackSwap(song:String, ?postFix:String, checkMods:Bool = true):Null<Sound>
 	{
-		var name = sanitize(song);
-
+		var name:String = sanitize(song);
 		var songKey:String = '$name/Track';
 		if (FunkinAssets.isDirectory(getPath('songs/$name/audio', null, checkMods))) songKey = '$name/audio/Track';
-
 		if (postFix != null) songKey += '-$postFix';
-
 		songKey = findFileWithExts('songs/$songKey', ['ogg', 'wav'], null, checkMods);
-
 		if (ClientPrefs.streamedMusic) return FunkinAssets.getVorbisSound(songKey);
-
 		return FunkinAssets.getSoundUnsafe(songKey);
 	}
 
 	public static inline function voices(song:String, ?postFix:String, checkMods:Bool = true):Null<Sound>
 	{
-		var name = sanitize(song);
-
+		var name:String = sanitize(song);
 		var songKey:String = '$name/Voices';
 		if (FunkinAssets.isDirectory(getPath('songs/$name/audio', null, checkMods))) songKey = '$name/audio/Voices';
-
 		if (postFix != null) songKey += '-$postFix';
-
 		songKey = findFileWithExts('songs/$songKey', ['ogg', 'wav'], null, checkMods);
-
 		if (ClientPrefs.streamedMusic) return FunkinAssets.getVorbisSound(songKey);
-
 		return FunkinAssets.getSoundUnsafe(songKey);
 	}
 
 	public static inline function inst(song:String, ?postFix:String, checkMods:Bool = true):Sound
 	{
-		var name = sanitize(song);
-
+		var name:String = sanitize(song);
 		var songKey:String = '$name/Inst';
 		if (FunkinAssets.isDirectory(getPath('songs/$name/audio', null, checkMods))) songKey = '$name/audio/Inst';
-
 		if (postFix != null) songKey += '-$postFix';
-
 		songKey = findFileWithExts('songs/$songKey', ['ogg', 'wav'], null, checkMods);
-
 		if (ClientPrefs.streamedMusic) return FunkinAssets.getVorbisSound(songKey) ?? FunkinAssets.getSound(songKey);
-
 		return FunkinAssets.getSound(songKey);
 	}
 
@@ -203,7 +187,6 @@ class Paths
 			final joined = getPath('$key.$ext', parentFolder, checkMods, mode);
 			if (FunkinAssets.exists(joined)) return joined;
 		}
-
 		return getPath(key, parentFolder, checkMods, mode);
 	}
 
@@ -223,7 +206,6 @@ class Paths
 		if (keys.length == 0) return null;
 
 		final firstKey:Null<String> = keys.shift()?.trim();
-
 		var frames = getAtlasFrames(firstKey, parentFolder, allowGPU, checkMods);
 
 		if (keys.length != 0)
@@ -234,8 +216,7 @@ class Paths
 			for (i in keys)
 			{
 				final newFrames = getAtlasFrames(i.trim(), parentFolder, allowGPU, checkMods);
-				if (newFrames != null)
-					frames.addAtlas(newFrames, false);
+				if (newFrames != null) frames.addAtlas(newFrames, false);
 			}
 		}
 
@@ -245,13 +226,11 @@ class Paths
 	public static inline function getAtlasFrames(key:String, ?parentFolder:String, allowGPU:Bool = true, checkMods:Bool = true, mode:PathsTestMode = NORMAL):FlxAtlasFrames
 	{
 		final directPath = getPath('images/$key.png', parentFolder, checkMods, mode).withoutExtension();
-
 		final tempFrames = tempAtlasFramesCache.get(directPath);
 		if (tempFrames != null) return tempFrames;
 
 		final xmlPath = getPath('images/$key.xml', parentFolder, checkMods, mode);
 		final txtPath = getPath('images/$key.txt', parentFolder, checkMods, mode);
-
 		final graphic = image(key, parentFolder, allowGPU, checkMods, mode);
 
 		if (FunkinAssets.exists(xmlPath))
@@ -307,10 +286,10 @@ class Paths
 		return ~/[^- a-zA-Z0-9..\/]+\//g.replace(path, '').replace(' ', '-').trim().toLowerCase();
 	}
 
-	public static function listAllFilesInDirectory(directory:String, checkMods:Bool = true, mode:PathsTestMode = NORMAL)
+	public static function listAllFilesInDirectory(directory:String, checkMods:Bool = true, mode:PathsTestMode = NORMAL):Array<String>
 	{
 		var folders:Array<String> = [];
-		var files:Array<String> = [];
+		var files:Array<String>   = [];
 
 		#if MODS_ALLOWED
 		if (checkMods)
@@ -331,8 +310,8 @@ class Paths
 					continue;
 				}
 
-				final path:String = mods('$mod/$directory');
-				if (FunkinAssets.exists(path) && !folders.contains(path)) folders.push(path);
+				final modPath:String = mods('$mod/$directory');
+				if (FunkinAssets.exists(modPath) && !folders.contains(modPath)) folders.push(modPath);
 			}
 		}
 		#end
@@ -345,9 +324,8 @@ class Paths
 		if (FunkinAssets.exists(getCorePath(directory))) folders.push(getCorePath(directory));
 
 		for (folder in folders)
-		{
-			for (file in FunkinAssets.readDirectory(folder)) files.push(Path.join([folder, file]));
-		}
+			for (file in FunkinAssets.readDirectory(folder))
+				files.push(Path.join([folder, file]));
 
 		return files;
 	}
@@ -358,7 +336,7 @@ class Paths
 		#if android
 		return Storage.getExternalFilePath('$MODS_DIRECTORY/$key');
 		#else
-		return '$MODS_DIRECTORY/' + key;
+		return '$MODS_DIRECTORY/$key';
 		#end
 	}
 
@@ -385,7 +363,15 @@ class Paths
 
 		return mods(key);
 	}
-	#end
+	#else
+	public static inline function mods(key:String = ''):String
+	{
+		return '$MODS_DIRECTORY/$key';
+	}
 
-	public static var overrideMode:Null<PathsTestMode> = null;
+	public static function modFolders(key:String, mode:PathsTestMode = NORMAL):String
+	{
+		return mods(key);
+	}
+	#end
 }
